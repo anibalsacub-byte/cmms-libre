@@ -1,18 +1,17 @@
 """Punto de entrada para correr CMMS Libre como aplicación de escritorio:
 levanta el backend (con el frontend ya compilado servido en la misma URL),
-crea un usuario administrador si no existe ninguno y abre el navegador.
+carga los usuarios y datos de demostración si la base está vacía, y abre
+el navegador.
 
 Uso:
-    python iniciar.py [--puerto 8000] [--red] [--sin-navegador] [--demo]
+    python iniciar.py [--puerto 8000] [--red] [--sin-navegador]
 
 --red           escucha en 0.0.0.0 (otras PCs de la red local pueden entrar)
 --sin-navegador no abre el navegador automáticamente
---demo          carga datos de demostración (equivalente a manage.py seed_demo)
 """
 
 import argparse
 import os
-import secrets
 import sys
 import threading
 import webbrowser
@@ -32,31 +31,20 @@ from django.contrib.auth.models import User  # noqa: E402
 from django.core.management import call_command  # noqa: E402
 
 
-def preparar_base_de_datos(cargar_demo: bool):
+def preparar_base_de_datos():
     call_command("migrate", verbosity=0, interactive=False)
 
-    if cargar_demo:
-        call_command("seed_demo")
+    if User.objects.exists():
         return
 
-    if User.objects.filter(is_superuser=True).exists():
-        return
-
-    password = secrets.token_urlsafe(9)
-    User.objects.create_superuser("admin", "admin@cmms.local", password)
-
-    credenciales = settings.DATA_DIR / "credenciales_admin.txt"
-    credenciales.write_text(
-        f"Usuario: admin\nContraseña: {password}\n"
-        "Guarda este archivo en un lugar seguro; puedes cambiar la contraseña "
-        "desde Django admin una vez dentro.\n",
-        encoding="utf-8",
-    )
+    call_command("seed_demo")
     print("=" * 60)
-    print("Se creó un usuario administrador para esta instalación:")
-    print(f"  Usuario:     admin")
-    print(f"  Contraseña:  {password}")
-    print(f"  (guardado también en {credenciales})")
+    print("Usuarios de demostración creados (contraseña entre paréntesis):")
+    print("  admin           (admin12345)   - Administrador")
+    print("  planificador1   (demo12345)    - Planificador")
+    print("  tecnico1        (demo12345)    - Técnico")
+    print("  solicitante1    (demo12345)    - Solicitante")
+    print("  lector1         (demo12345)    - Solo lectura")
     print("=" * 60)
 
 
@@ -69,11 +57,10 @@ def main():
     parser.add_argument("--puerto", type=int, default=8000)
     parser.add_argument("--red", action="store_true")
     parser.add_argument("--sin-navegador", action="store_true")
-    parser.add_argument("--demo", action="store_true")
     args = parser.parse_args()
 
     host = "0.0.0.0" if args.red else "127.0.0.1"
-    preparar_base_de_datos(cargar_demo=args.demo)
+    preparar_base_de_datos()
 
     url = f"http://127.0.0.1:{args.puerto}/"
     print(f"CMMS Libre escuchando en {url}" + (" (y en la red local)" if args.red else ""))

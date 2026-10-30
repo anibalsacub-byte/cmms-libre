@@ -174,13 +174,11 @@ en `backend\dist\CMMSLibre.exe` (~25 MB, un solo archivo, nada más que copiar).
 
 Al ejecutarlo:
 
-1. Aplica las migraciones y, si es la primera vez, crea un usuario `admin` con una contraseña aleatoria que
-   muestra en pantalla y guarda en `%LOCALAPPDATA%\CMMSLibre\credenciales_admin.txt`.
+1. Aplica las migraciones y, si la base está vacía (primera vez), carga los usuarios y datos de demostración
+   (los mismos de la tabla de más arriba: `admin/admin12345`, `planificador1/demo12345`, etc.).
 2. Abre el navegador en `http://127.0.0.1:8000/` — ahí vive **todo**: frontend, API y `/admin/`.
-3. Los datos (`db.sqlite3`, adjuntos) se guardan en `%LOCALAPPDATA%\CMMSLibre`, nunca dentro del `.exe`.
-
-Igual que CMMS Aula, la instalación **nace vacía**: cada usuario carga sus propios activos y órdenes de trabajo.
-Para arrancar en cambio con los datos de demostración (como en desarrollo), usa `CMMSLibre.exe --demo`.
+3. Los datos (`db.sqlite3`, adjuntos) se guardan en `%LOCALAPPDATA%\CMMSLibre`, nunca dentro del `.exe`. Para
+   arrancar de cero, cierra el programa y borra esa carpeta.
 
 Opciones de línea de comandos (`CMMSLibre.exe --help` o ver `backend/iniciar.py`):
 
@@ -189,7 +187,6 @@ Opciones de línea de comandos (`CMMSLibre.exe --help` o ver `backend/iniciar.py
 | `--puerto 8000` | Puerto donde escuchar (por defecto 8000) |
 | `--red` | Escucha en `0.0.0.0`: otras PCs de la red local pueden entrar |
 | `--sin-navegador` | No abre el navegador automáticamente |
-| `--demo` | Carga los datos de demostración en vez de nacer vacío |
 
 Para probarlo sin empaquetar (equivalente a correr el `.exe` desde el código fuente):
 

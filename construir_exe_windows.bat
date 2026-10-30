@@ -40,8 +40,8 @@ popd
 
 echo.
 echo [5/5] Listo: backend\dist\CMMSLibre.exe
-echo Doble clic para ejecutarlo; la primera vez crea un usuario admin y
-echo muestra su contrasena en pantalla (y en %%LOCALAPPDATA%%\CMMSLibre\credenciales_admin.txt).
+echo Doble clic para ejecutarlo; la primera vez carga los usuarios de demostracion
+echo (admin/admin12345, planificador1/demo12345, etc. - ver README.md).
 goto :eof
 
 :error
