@@ -8,6 +8,10 @@ import Notices from './pages/Notices'
 import WorkOrders from './pages/WorkOrders'
 import Inventory from './pages/Inventory'
 import Technicians from './pages/Technicians'
+import Bom from './pages/Bom'
+import FailureCatalog from './pages/FailureCatalog'
+import Purchasing from './pages/Purchasing'
+import Production from './pages/Production'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuth()
@@ -32,6 +36,10 @@ function AppRoutes() {
         <Route path="avisos" element={<Notices />} />
         <Route path="ordenes" element={<WorkOrders />} />
         <Route path="inventario" element={<Inventory />} />
+        <Route path="bom" element={<Bom />} />
+        <Route path="fallas" element={<FailureCatalog />} />
+        <Route path="compras" element={<Purchasing />} />
+        <Route path="produccion" element={<Production />} />
         <Route path="tecnicos" element={<Technicians />} />
       </Route>
     </Routes>

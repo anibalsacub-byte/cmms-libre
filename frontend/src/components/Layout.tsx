@@ -7,6 +7,10 @@ const links = [
   { to: '/avisos', label: 'Avisos' },
   { to: '/ordenes', label: 'Órdenes de trabajo' },
   { to: '/inventario', label: 'Inventario' },
+  { to: '/bom', label: 'BOM / Repuestos' },
+  { to: '/fallas', label: 'Catálogo de fallas' },
+  { to: '/compras', label: 'Compras' },
+  { to: '/produccion', label: 'Producción / OEE' },
   { to: '/tecnicos', label: 'Técnicos' },
 ]
 

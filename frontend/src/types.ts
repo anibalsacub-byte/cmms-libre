@@ -123,6 +123,98 @@ export type StockAlmacen = {
   bajo_minimo: boolean
 }
 
+export type EquipoMaterial = {
+  id: number
+  activo: number
+  activo_codigo: string
+  material: number
+  material_codigo: string
+  material_descripcion: string
+  cantidad_referencia: string
+  notas: string
+}
+
+export type Sintoma = { id: number; nombre: string }
+
+export type ModoFalla = { id: number; codigo: string; nombre: string }
+
+export type MecanismoFalla = { id: number; codigo: string; nombre: string }
+
+export type CausaFalla = {
+  id: number
+  codigo: string
+  nombre: string
+  categoria: string
+}
+
+export type OrdenCompra = {
+  id: number
+  numero: string
+  material: number
+  material_codigo: string
+  orden_trabajo: number | null
+  tipo: 'NORMAL' | 'EMERGENCIA'
+  cantidad: string
+  proveedor: string
+  costo_estimado: string
+  tiempo_entrega_dias: number
+  estado: string
+  almacen_destino: number
+  fecha_solicitud: string
+  fecha_recepcion: string | null
+}
+
+export type SolicitudMaterial = {
+  id: number
+  orden_trabajo: number
+  orden_trabajo_numero: string
+  material: number
+  material_codigo: string
+  cantidad: string
+  fuente: 'STOCK_LOCAL' | 'TRASLADO' | 'COMPRA_NORMAL' | 'COMPRA_EMERGENCIA'
+  costo_estimado: string
+  tiempo_estimado_horas: string
+  estado: string
+}
+
+export type LineaProduccion = {
+  id: number
+  codigo: string
+  nombre: string
+  velocidad_nominal: string
+  activo_principal: number | null
+}
+
+export type RegistroProduccion = {
+  id: number
+  linea: number
+  linea_nombre: string
+  fecha: string
+  turno: string
+  tiempo_planificado_horas: string
+  tiempo_parada_horas: string
+  unidades_producidas: number
+  unidades_buenas: number
+  disponibilidad: number
+  rendimiento: number
+  calidad: number
+  oee: number
+}
+
+export type ImpactoOperativoFalla = {
+  id: number
+  aviso: number
+  aviso_numero: string
+  linea: number
+  linea_nombre: string
+  afecta_disponibilidad: boolean
+  afecta_velocidad: boolean
+  afecta_calidad: boolean
+  unidades_perdidas: number
+  costo_impacto: string
+  notas: string
+}
+
 export type DashboardData = {
   mantenimiento: {
     periodo_dias: number

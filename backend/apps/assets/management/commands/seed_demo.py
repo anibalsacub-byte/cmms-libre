@@ -19,6 +19,7 @@ from apps.workorders.models import (
     BitacoraOT,
 )
 from apps.production.models import LineaProduccion, RegistroProduccion, ImpactoOperativoFalla
+from apps.purchasing.models import OrdenCompra, SolicitudMaterial
 
 
 class Command(BaseCommand):
@@ -229,7 +230,7 @@ class Command(BaseCommand):
         BitacoraOT.objects.create(orden_trabajo=orden, usuario="admin", evento="OT creada a partir de aviso AV")
         BitacoraOT.objects.create(orden_trabajo=orden, usuario="admin", evento="Estado: CREADA -> CERRADA")
 
-        OrdenTrabajo.objects.create(
+        orden_motor = OrdenTrabajo.objects.create(
             aviso=aviso2,
             activo=activo_motor,
             tipo="CORRECTIVO",
@@ -239,6 +240,40 @@ class Command(BaseCommand):
             tecnico_principal=tec2,
             fecha_planificada=timezone.now().date() + timedelta(days=1),
         )
+
+        self.stdout.write("Compras y abastecimiento...")
+        orden_compra_urgente = OrdenCompra.objects.create(
+            material=mat_sello,
+            orden_trabajo=orden,
+            tipo="EMERGENCIA",
+            cantidad=2,
+            proveedor="Repuestos Industriales SAC",
+            costo_estimado=95.00,
+            tiempo_entrega_dias=2,
+            estado="RECIBIDA",
+            almacen_destino=almacen_central,
+            fecha_recepcion=timezone.now(),
+        )
+        SolicitudMaterial.objects.create(
+            orden_trabajo=orden,
+            material=mat_sello,
+            cantidad=1,
+            fuente="COMPRA_EMERGENCIA",
+            orden_compra=orden_compra_urgente,
+            costo_estimado=47.50,
+            tiempo_estimado_horas=48,
+            estado="DISPONIBLE",
+        )
+        SolicitudMaterial.objects.create(
+            orden_trabajo=orden_motor,
+            material=mat_rodamiento,
+            cantidad=2,
+            fuente="TRASLADO",
+            costo_estimado=37.00,
+            tiempo_estimado_horas=6,
+            estado="EN_PROCESO",
+        )
+
         OrdenTrabajo.objects.create(
             activo=activo_compresor,
             tipo="PREVENTIVO",
