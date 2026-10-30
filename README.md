@@ -52,22 +52,44 @@ Es un proyecto independiente: no reutiliza código de terceros ni de otros proye
 | 19 | Trazabilidad de decisiones | `apps/workorders.BitacoraOT` (auditoría de cada cambio de estado) |
 | 20 | Dashboard de gestión | Pantalla **Dashboard** (frontend) + `GET /api/kpis/dashboard/` |
 
-## Alcance de este MVP
+## Alcance actual
 
-Para llegar rápido a algo usable se priorizó una interfaz dedicada para los módulos de uso diario (**Dashboard,
-Activos, Avisos, Órdenes de trabajo, Inventario, Técnicos**). El resto de los módulos (catálogo de fallas ISO
-14224, BOM equipo-repuesto, compras/abastecimiento, producción/OEE) ya tiene **modelo de datos, API REST y
-administración completos**, listos para consumir desde `/admin` o para que se les agregue pantalla propia en una
-siguiente iteración — no es necesario rediseñar nada para activarlos.
+Todos los módulos de la tabla anterior tienen pantalla propia en el frontend: **Dashboard, Activos, Avisos,
+Órdenes de trabajo, Planes preventivos, Inventario, BOM/Repuestos, Catálogo de fallas, Compras, Producción/OEE,
+Reportes y Técnicos**. Todo lo demás tiene además modelo de datos, API REST y administración completos.
 
-### Roadmap sugerido (fase 2+)
+### Roles y permisos
 
-- Pantallas dedicadas para BOM, catálogo ISO 14224, compras/abastecimiento y producción/OEE.
-- Autenticación por roles (planificador, técnico, solicitante, solo lectura) — hoy todo usuario autenticado tiene
-  acceso completo.
-- Planes de mantenimiento preventivo por calendario/horómetro que generen OT automáticamente.
-- Adjuntos (fotos, PDF) en avisos y OT.
-- Reportes Pareto de fallas (por modo/mecanismo/causa) y exportación a Excel/PDF.
+Cada usuario tiene un `PerfilUsuario.rol` (`apps/accounts`):
+
+| Rol | Puede |
+| --- | --- |
+| **Administrador** | Todo (superusuario de Django) |
+| **Planificador** | Todo excepto administración de Django |
+| **Técnico** | Operar OT (tareas, materiales, cambios de estado, adjuntos), crear avisos; no administra catálogos/compras/activos |
+| **Solicitante** | Solo reportar avisos (botón "Nuevo aviso") y ver todo en modo lectura |
+| **Solo lectura** | Ver todo, no puede crear ni editar nada |
+
+La lectura (`GET`) está abierta a cualquier usuario autenticado; la escritura se controla con clases de permiso
+DRF por módulo (`apps/accounts/permissions.py`). El frontend oculta del menú los módulos de gestión y deshabilita
+acciones según el rol devuelto por `GET /api/accounts/me/`.
+
+### Mantenimiento preventivo
+
+`apps/pm_plans`: planes por **calendario** (cada N días) o por **horómetro** (cada N horas de uso del activo).
+El botón "Generar órdenes pendientes" (o el comando `manage.py generar_ot_preventivas`, pensado para cron) revisa
+los planes vencidos, crea la OT preventiva con sus tareas plantilla y avanza el próximo vencimiento.
+
+### Adjuntos
+
+`apps/attachments`: fotos o PDF asociados a un aviso o a una OT (evidencia, respaldo del cierre técnico), subida
+multipart y visible en el detalle de la OT.
+
+### Reportes
+
+`GET /api/kpis/pareto/` agrupa avisos por modo/mecanismo/causa de falla (ISO 14224) para priorizar qué atacar
+primero; la pantalla **Reportes** lo grafica. `GET /api/workorders/ordenes/exportar-csv/` exporta las OT a CSV
+(abrible en Excel) respetando los filtros aplicados.
 
 ## Arquitectura
 
@@ -76,21 +98,31 @@ cmms-libre/
   backend/                  Django 5 + DRF
     config/                 settings, urls
     apps/
+      accounts/              Roles y permisos (PerfilUsuario, /api/accounts/me/)
       assets/                Activos y ubicaciones técnicas
       failures/               Catálogo ISO 14224 (modo/mecanismo/causa de falla)
       notices/                 Avisos
       workorders/               Órdenes de trabajo
-      hr/                        Técnicos
-      inventory/                  Materiales, almacenes, stock, traslados
-      bom/                          Relación equipo-repuesto
-      purchasing/                    Compras y solicitudes de material
-      production/                     Líneas, registros OEE, impacto operativo
-      kpis/                             Cálculo de indicadores (sin modelos propios)
+      pm_plans/                  Planes de mantenimiento preventivo
+      attachments/                 Adjuntos (fotos/PDF) de avisos y OT
+      hr/                            Técnicos
+      inventory/                      Materiales, almacenes, stock, traslados
+      bom/                              Relación equipo-repuesto
+      purchasing/                        Compras y solicitudes de material
+      production/                         Líneas, registros OEE, impacto operativo
+      kpis/                                 Indicadores y Pareto de fallas (sin modelos propios)
   frontend/                 React + TypeScript + Vite + Tailwind + Recharts
 ```
 
-La API expone un router DRF por app bajo `/api/<app>/...` más `/api/kpis/dashboard/` para el panel. Autenticación
-por token (`/api/auth/token/`). El panel `/admin` de Django cubre CRUD completo de todos los módulos.
+La API expone un router DRF por app bajo `/api/<app>/...` más `/api/kpis/dashboard/` y `/api/kpis/pareto/` para
+el panel. Autenticación por token (`/api/auth/token/`). El panel `/admin` de Django cubre CRUD completo de todos
+los módulos, incluida la asignación de roles.
+
+### Roadmap sugerido (fase 3+)
+
+- Reglas de codificación y validación de calidad de datos al dar de alta activos/materiales.
+- Checklists de inspección/ronda con firma digital.
+- Notificaciones (email/push) cuando un plan preventivo vence o el stock cae bajo el mínimo.
 
 ## Cómo correrlo
 
@@ -101,12 +133,22 @@ cd backend
 python -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
 .venv\Scripts\python manage.py migrate
-.venv\Scripts\python manage.py seed_demo   # datos de demostración + usuario admin/admin12345
+.venv\Scripts\python manage.py seed_demo   # datos de demostración + usuarios por rol
 .venv\Scripts\python manage.py runserver
 ```
 
 Por defecto usa **SQLite** (cero configuración). Para producción, defina `USE_POSTGRES=true` y las variables
 `POSTGRES_*` en un archivo `.env` (ver `.env.example`).
+
+`seed_demo` crea estos usuarios (contraseña `admin12345` para `admin`, `demo12345` para el resto):
+
+| Usuario | Rol |
+| --- | --- |
+| `admin` | Administrador (superusuario) |
+| `planificador1` | Planificador |
+| `tecnico1` | Técnico (enlazado a la ficha de personal TEC-001) |
+| `solicitante1` | Solicitante |
+| `lector1` | Solo lectura |
 
 ### Frontend
 

@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .services import kpis_mantenimiento, kpis_oee
+from .services import kpis_mantenimiento, kpis_oee, pareto_fallas
 
 
 class DashboardView(APIView):
@@ -18,3 +18,12 @@ class DashboardView(APIView):
                 "oee": kpis_oee(dias=dias, linea_id=linea_id),
             }
         )
+
+
+class ParetoFallasView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        dias = int(request.query_params.get("dias", 90))
+        activo_id = request.query_params.get("activo")
+        return Response(pareto_fallas(dias=dias, activo_id=activo_id))

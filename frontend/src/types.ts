@@ -215,6 +215,42 @@ export type ImpactoOperativoFalla = {
   notas: string
 }
 
+export type PlanPreventivo = {
+  id: number
+  activo: number
+  activo_codigo: string
+  activo_nombre: string
+  nombre: string
+  descripcion: string
+  tareas_plantilla: string
+  tipo: 'CALENDARIO' | 'HOROMETRO'
+  frecuencia_dias: number | null
+  frecuencia_horas: string | null
+  dias_anticipacion: number
+  fecha_proxima: string | null
+  horometro_proximo: string | null
+  activo_flag: boolean
+  ultima_generacion: string | null
+  vencido: boolean
+}
+
+export type ParetoData = {
+  periodo_dias: number
+  por_modo: { codigo: string; nombre: string; total: number }[]
+  por_mecanismo: { codigo: string; nombre: string; total: number }[]
+  por_causa: { codigo: string; nombre: string; categoria: string; total: number }[]
+}
+
+export type Adjunto = {
+  id: number
+  aviso: number | null
+  orden_trabajo: number | null
+  archivo: string
+  descripcion: string
+  subido_por: string
+  subido_en: string
+}
+
 export type DashboardData = {
   mantenimiento: {
     periodo_dias: number

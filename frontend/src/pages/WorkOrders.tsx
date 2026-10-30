@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
-import type { OrdenTrabajo, OrdenTrabajoDetalle, Paginated } from '../types'
+import type { Adjunto, OrdenTrabajo, OrdenTrabajoDetalle, Paginated } from '../types'
 import Badge from '../components/Badge'
+import { useAuth } from '../context/AuthContext'
 
 const ESTADOS = [
   'CREADA',
@@ -15,9 +16,13 @@ const ESTADOS = [
 ]
 
 export default function WorkOrders() {
+  const { puedeOperar } = useAuth()
   const [ordenes, setOrdenes] = useState<OrdenTrabajo[]>([])
   const [seleccionada, setSeleccionada] = useState<OrdenTrabajoDetalle | null>(null)
   const [cambiando, setCambiando] = useState(false)
+  const [adjuntos, setAdjuntos] = useState<Adjunto[]>([])
+  const [subiendo, setSubiendo] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   function load() {
     api.get<Paginated<OrdenTrabajo>>('/workorders/ordenes/').then((res) => setOrdenes(res.data.results))
@@ -25,9 +30,16 @@ export default function WorkOrders() {
 
   useEffect(load, [])
 
+  function cargarAdjuntos(otId: number) {
+    api
+      .get<Paginated<Adjunto>>(`/attachments/adjuntos/?orden_trabajo=${otId}`)
+      .then((res) => setAdjuntos(res.data.results))
+  }
+
   async function abrir(id: number) {
     const { data } = await api.get<OrdenTrabajoDetalle>(`/workorders/ordenes/${id}/`)
     setSeleccionada(data)
+    cargarAdjuntos(id)
   }
 
   async function cambiarEstado(estado: string) {
@@ -42,6 +54,24 @@ export default function WorkOrders() {
       load()
     } finally {
       setCambiando(false)
+    }
+  }
+
+  async function subirAdjunto(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0]
+    if (!archivo || !seleccionada) return
+    setSubiendo(true)
+    try {
+      const formData = new FormData()
+      formData.append('archivo', archivo)
+      formData.append('orden_trabajo', String(seleccionada.id))
+      await api.post('/attachments/adjuntos/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      cargarAdjuntos(seleccionada.id)
+    } finally {
+      setSubiendo(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -98,9 +128,9 @@ export default function WorkOrders() {
                 <label className="block text-xs font-medium text-slate-500 mb-1">Estado</label>
                 <select
                   value={seleccionada.estado}
-                  disabled={cambiando}
+                  disabled={cambiando || !puedeOperar}
                   onChange={(e) => cambiarEstado(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 text-sm px-2 py-1.5"
+                  className="w-full rounded-md border border-slate-300 text-sm px-2 py-1.5 disabled:bg-slate-100 disabled:text-slate-400"
                 >
                   {ESTADOS.map((e) => (
                     <option key={e} value={e}>
@@ -161,6 +191,37 @@ export default function WorkOrders() {
                 <p>Mano de obra: ${seleccionada.costo_mano_obra}</p>
                 <p>Materiales: ${seleccionada.costo_materiales}</p>
                 <p className="font-semibold">Total: ${seleccionada.costo_total}</p>
+              </div>
+
+              <div>
+                <h3 className="text-xs font-semibold text-slate-500 uppercase mb-1">Adjuntos</h3>
+                <ul className="text-sm space-y-1">
+                  {adjuntos.map((a) => (
+                    <li key={a.id}>
+                      <a
+                        href={a.archivo}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {a.archivo.split('/').pop()}
+                      </a>{' '}
+                      <span className="text-xs text-slate-400">({a.subido_por})</span>
+                    </li>
+                  ))}
+                  {adjuntos.length === 0 && (
+                    <li className="text-slate-400">Sin adjuntos todavía.</li>
+                  )}
+                </ul>
+                {puedeOperar && (
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    onChange={subirAdjunto}
+                    disabled={subiendo}
+                    className="mt-2 text-xs"
+                  />
+                )}
               </div>
 
               <div>

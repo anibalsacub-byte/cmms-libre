@@ -2,6 +2,7 @@ from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from apps.accounts.permissions import CualquieraCreaSoloAdministracionEdita
 from .models import Aviso
 from .serializers import AvisoSerializer
 
@@ -9,6 +10,7 @@ from .serializers import AvisoSerializer
 class AvisoViewSet(viewsets.ModelViewSet):
     queryset = Aviso.objects.all().select_related("activo")
     serializer_class = AvisoSerializer
+    permission_classes = [CualquieraCreaSoloAdministracionEdita]
     filterset_fields = ["estado", "prioridad", "activo"]
     search_fields = ["numero", "descripcion"]
 

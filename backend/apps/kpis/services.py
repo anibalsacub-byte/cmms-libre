@@ -89,6 +89,60 @@ def kpis_mantenimiento(dias=30, activo_id=None):
     }
 
 
+def pareto_fallas(dias=90, activo_id=None):
+    """Conteo de avisos por modo, mecanismo y causa de falla (ISO 14224),
+    para priorizar qué atacar primero."""
+
+    inicio, fin = rango_periodo(dias)
+    avisos = Aviso.objects.filter(fecha_reporte__gte=inicio, fecha_reporte__lte=fin)
+    if activo_id:
+        avisos = avisos.filter(activo_id=activo_id)
+
+    por_modo = (
+        avisos.exclude(modo_falla__isnull=True)
+        .values("modo_falla__codigo", "modo_falla__nombre")
+        .annotate(total=Count("id"))
+        .order_by("-total")
+    )
+    por_mecanismo = (
+        avisos.exclude(mecanismo_falla__isnull=True)
+        .values("mecanismo_falla__codigo", "mecanismo_falla__nombre")
+        .annotate(total=Count("id"))
+        .order_by("-total")
+    )
+    por_causa = (
+        avisos.exclude(causa_falla__isnull=True)
+        .values("causa_falla__codigo", "causa_falla__nombre", "causa_falla__categoria")
+        .annotate(total=Count("id"))
+        .order_by("-total")
+    )
+
+    return {
+        "periodo_dias": dias,
+        "por_modo": [
+            {"codigo": r["modo_falla__codigo"], "nombre": r["modo_falla__nombre"], "total": r["total"]}
+            for r in por_modo
+        ],
+        "por_mecanismo": [
+            {
+                "codigo": r["mecanismo_falla__codigo"],
+                "nombre": r["mecanismo_falla__nombre"],
+                "total": r["total"],
+            }
+            for r in por_mecanismo
+        ],
+        "por_causa": [
+            {
+                "codigo": r["causa_falla__codigo"],
+                "nombre": r["causa_falla__nombre"],
+                "categoria": r["causa_falla__categoria"],
+                "total": r["total"],
+            }
+            for r in por_causa
+        ],
+    }
+
+
 def kpis_oee(dias=30, linea_id=None):
     inicio, _ = rango_periodo(dias)
     qs = RegistroProduccion.objects.filter(fecha__gte=inicio.date())

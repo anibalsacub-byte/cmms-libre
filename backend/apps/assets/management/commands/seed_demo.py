@@ -20,15 +20,30 @@ from apps.workorders.models import (
 )
 from apps.production.models import LineaProduccion, RegistroProduccion, ImpactoOperativoFalla
 from apps.purchasing.models import OrdenCompra, SolicitudMaterial
+from apps.pm_plans.models import PlanPreventivo
+from apps.accounts.models import PerfilUsuario
 
 
 class Command(BaseCommand):
     help = "Carga datos de demostración para el CMMS Libre."
 
     def handle(self, *args, **options):
-        self.stdout.write("Creando usuario admin (admin / admin12345)...")
+        self.stdout.write("Creando usuarios de demostración por rol...")
         if not User.objects.filter(username="admin").exists():
             User.objects.create_superuser("admin", "admin@cmms.local", "admin12345")
+
+        usuarios_demo = [
+            ("planificador1", "PLANIFICADOR"),
+            ("tecnico1", "TECNICO"),
+            ("solicitante1", "SOLICITANTE"),
+            ("lector1", "SOLO_LECTURA"),
+        ]
+        for username, rol in usuarios_demo:
+            if not User.objects.filter(username=username).exists():
+                User.objects.create_user(username, f"{username}@cmms.local", "demo12345")
+            PerfilUsuario.objects.update_or_create(
+                usuario=User.objects.get(username=username), defaults={"rol": rol}
+            )
 
         self.stdout.write("Planta y ubicaciones técnicas...")
         planta = UbicacionTecnica.objects.create(codigo="PL-01", nombre="Planta Central")
@@ -122,6 +137,10 @@ class Command(BaseCommand):
             capacidad_diaria_horas=8,
         )
         tec2.habilidades.add(hab_plc)
+
+        perfil_tecnico1 = PerfilUsuario.objects.get(usuario__username="tecnico1")
+        perfil_tecnico1.tecnico = tec1
+        perfil_tecnico1.save(update_fields=["tecnico"])
 
         self.stdout.write("Almacenes, materiales y BOM...")
         almacen_central = Almacen.objects.create(codigo="ALM-01", nombre="Bodega central")
@@ -312,6 +331,27 @@ class Command(BaseCommand):
             unidades_perdidas=180,
             costo_impacto=540.00,
             notas="Parada de línea por fuga en bomba de llenado.",
+        )
+
+        self.stdout.write("Planes de mantenimiento preventivo...")
+        PlanPreventivo.objects.create(
+            activo=activo_compresor,
+            nombre="Cambio de filtros de aire",
+            descripcion="Mantenimiento preventivo trimestral del compresor de aire.",
+            tareas_plantilla="Revisar presión de trabajo\nCambiar filtro de aire\nRevisar nivel de aceite",
+            tipo="CALENDARIO",
+            frecuencia_dias=90,
+            dias_anticipacion=5,
+            fecha_proxima=hoy - timedelta(days=2),
+        )
+        PlanPreventivo.objects.create(
+            activo=activo_motor,
+            nombre="Lubricación de rodamientos",
+            descripcion="Lubricación preventiva del motor transportador según horómetro.",
+            tareas_plantilla="Lubricar rodamientos\nVerificar alineación\nMedir vibración",
+            tipo="HOROMETRO",
+            frecuencia_horas=500,
+            horometro_proximo=activo_motor.horas_operacion_acumuladas + 500,
         )
 
         self.stdout.write(self.style.SUCCESS("Datos de demostración cargados correctamente."))
