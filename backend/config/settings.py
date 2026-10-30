@@ -1,18 +1,49 @@
 """Django settings for the CMMS Libre project."""
 
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+# En el .exe empaquetado con PyInstaller, el código y los recursos de solo
+# lectura (migraciones, frontend compilado) viven en sys._MEIPASS.
+if getattr(sys, "frozen", False):
+    BASE_DIR = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+else:
+    BASE_DIR = Path(__file__).resolve().parent.parent
+
 load_dotenv(BASE_DIR / ".env")
+
+# Carpeta donde se escriben datos (base de datos, media, estáticos
+# recolectados): nunca dentro del bundle del .exe, que es de solo lectura.
+if os.environ.get("CMMS_LIBRE_DATA_DIR"):
+    DATA_DIR = Path(os.environ["CMMS_LIBRE_DATA_DIR"])
+elif getattr(sys, "frozen", False):
+    DATA_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "CMMSLibre"
+else:
+    DATA_DIR = BASE_DIR
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# Frontend ya compilado (`npm run build`), servido directamente por Django.
+if getattr(sys, "frozen", False):
+    FRONTEND_DIST_DIR = BASE_DIR / "frontend_dist"
+else:
+    FRONTEND_DIST_DIR = BASE_DIR.parent / "frontend" / "dist"
+
+# En el .exe, el AppDirectoriesFinder de staticfiles no resuelve bien las
+# rutas de los paquetes empaquetados por PyInstaller; se sirven en cambio
+# desde una carpeta pre-recolectada con `manage.py collectstatic` antes de
+# construir el ejecutable (ver construir_exe_windows.bat).
+STATIC_BUNDLE_DIR = BASE_DIR / "static_collected" if getattr(sys, "frozen", False) else None
 
 SECRET_KEY = os.environ.get(
     "SECRET_KEY", "django-insecure-change-me-in-production-b!a1x^gddv!r@@f"
 )
 
-DEBUG = os.environ.get("DEBUG", "true").lower() == "true"
+DEBUG = os.environ.get(
+    "DEBUG", "false" if getattr(sys, "frozen", False) else "true"
+).lower() == "true"
 
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
@@ -93,7 +124,7 @@ else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+            "NAME": DATA_DIR / "db.sqlite3",
         }
     }
 
@@ -112,10 +143,10 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = DATA_DIR / "staticfiles"
 
 MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = DATA_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

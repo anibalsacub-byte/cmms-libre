@@ -7,6 +7,10 @@ backend/db.sqlite3
 backend/staticfiles/
 backend/media/
 backend/.env
+backend/credenciales_admin.txt
+backend/build/
+backend/dist/
+backend/*.spec
 *.pyc
 
 # Frontend (Node / Vite)

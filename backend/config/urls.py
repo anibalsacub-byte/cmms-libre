@@ -1,8 +1,11 @@
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import path, include
+from django.contrib.staticfiles.views import serve as serve_staticfiles
+from django.urls import path, include, re_path
+from django.views.static import serve as serve_static
 from rest_framework.authtoken.views import obtain_auth_token
+
+from .views import frontend_index
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -20,7 +23,30 @@ urlpatterns = [
     path("api/pm-plans/", include("apps.pm_plans.urls")),
     path("api/attachments/", include("apps.attachments.urls")),
     path("api/kpis/", include("apps.kpis.urls")),
+    # Media y estáticos: servidos siempre (no solo en DEBUG), ya que esta app
+    # corre como aplicación de escritorio local, no como servidor público.
+    re_path(
+        r"^media/(?P<path>.*)$", serve_static, {"document_root": settings.MEDIA_ROOT}
+    ),
+    # En desarrollo, usa el finder de staticfiles (busca en cada app, p. ej.
+    # admin/DRF) sin depender de `collectstatic`. En el .exe empaquetado,
+    # sirve desde la carpeta pre-recolectada (ver settings.STATIC_BUNDLE_DIR).
+    re_path(
+        r"^static/(?P<path>.*)$",
+        serve_static if settings.STATIC_BUNDLE_DIR else serve_staticfiles,
+        {"document_root": settings.STATIC_BUNDLE_DIR} if settings.STATIC_BUNDLE_DIR else {},
+    ),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+if settings.FRONTEND_DIST_DIR.exists():
+    urlpatterns += [
+        # Bundle del frontend (JS/CSS compilados por Vite).
+        re_path(
+            r"^assets/(?P<path>.*)$",
+            serve_static,
+            {"document_root": settings.FRONTEND_DIST_DIR / "assets"},
+        ),
+        # Cualquier otra ruta (activos, avisos, ordenes, ...) la resuelve el
+        # router de React: siempre se devuelve el index.html compilado.
+        re_path(r"^(?!api/|admin/|media/|static/).*$", frontend_index),
+    ]
