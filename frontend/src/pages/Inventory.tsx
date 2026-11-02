@@ -42,7 +42,7 @@ export default function Inventory() {
                 <td className="px-4 py-2 font-medium text-slate-700">{m.codigo}</td>
                 <td className="px-4 py-2">{m.descripcion}</td>
                 <td className="px-4 py-2 text-slate-500">{m.grupo_nombre}</td>
-                <td className="px-4 py-2 text-slate-500">${m.costo_unitario}</td>
+                <td className="px-4 py-2 text-slate-500">S/ {m.costo_unitario}</td>
                 <td className="px-4 py-2 text-slate-500">{m.stock_total}</td>
                 <td className="px-4 py-2 text-slate-500">{m.tiempo_entrega_dias}</td>
               </tr>

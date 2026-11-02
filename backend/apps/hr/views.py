@@ -1,5 +1,6 @@
 from rest_framework import viewsets
-from apps.accounts.permissions import SoloAdministracionEscribe
+from apps.accounts.permissions import SoloAdministracionEscribe, SoloSuperusuarioEscribe
+from apps.companies.mixins import EmpresaScopedMixin
 from .models import Especialidad, Habilidad, Tecnico
 from .serializers import EspecialidadSerializer, HabilidadSerializer, TecnicoSerializer
 
@@ -7,16 +8,16 @@ from .serializers import EspecialidadSerializer, HabilidadSerializer, TecnicoSer
 class EspecialidadViewSet(viewsets.ModelViewSet):
     queryset = Especialidad.objects.all()
     serializer_class = EspecialidadSerializer
-    permission_classes = [SoloAdministracionEscribe]
+    permission_classes = [SoloSuperusuarioEscribe]
 
 
 class HabilidadViewSet(viewsets.ModelViewSet):
     queryset = Habilidad.objects.all()
     serializer_class = HabilidadSerializer
-    permission_classes = [SoloAdministracionEscribe]
+    permission_classes = [SoloSuperusuarioEscribe]
 
 
-class TecnicoViewSet(viewsets.ModelViewSet):
+class TecnicoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
     queryset = Tecnico.objects.all().select_related("especialidad").prefetch_related("habilidades")
     serializer_class = TecnicoSerializer
     permission_classes = [SoloAdministracionEscribe]

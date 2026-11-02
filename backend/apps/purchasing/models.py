@@ -18,7 +18,7 @@ class OrdenCompra(models.Model):
         ("CANCELADA", "Cancelada"),
     ]
 
-    numero = models.CharField(max_length=20, unique=True, editable=False)
+    numero = models.CharField(max_length=20, editable=False)
     material = models.ForeignKey(Material, on_delete=models.PROTECT, related_name="ordenes_compra")
     orden_trabajo = models.ForeignKey(
         "workorders.OrdenTrabajo",
@@ -47,8 +47,7 @@ class OrdenCompra(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.numero:
-            ultimo = OrdenCompra.objects.order_by("-id").first()
-            siguiente = (ultimo.id + 1) if ultimo else 1
+            siguiente = OrdenCompra.objects.filter(material__empresa=self.material.empresa).count() + 1
             self.numero = f"OC-{siguiente:06d}"
         super().save(*args, **kwargs)
 

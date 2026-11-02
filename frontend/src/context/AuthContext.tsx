@@ -11,12 +11,15 @@ export type Me = {
   rol_display: string
   tecnico_id: number | null
   debe_cambiar_password: boolean
+  empresa_id: number | null
+  empresa_nombre: string | null
 }
 
 type AuthContextValue = {
   token: string | null
   me: Me | null
   login: (username: string, password: string) => Promise<void>
+  registrarEmpresa: (nombreEmpresa: string, username: string, password: string) => Promise<void>
   logout: () => void
   refrescarMe: () => Promise<void>
   puedeGestionar: boolean
@@ -50,6 +53,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(data.token)
   }
 
+  async function registrarEmpresa(nombreEmpresa: string, username: string, password: string) {
+    const { data } = await axios.post(`${API_BASE_URL}/accounts/registrar-empresa/`, {
+      nombre_empresa: nombreEmpresa,
+      username,
+      password,
+    })
+    localStorage.setItem('cmms_token', data.token)
+    setMe(data.me)
+    setToken(data.token)
+  }
+
   function logout() {
     localStorage.removeItem('cmms_token')
     setToken(null)
@@ -62,7 +76,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ token, me, login, logout, refrescarMe, puedeGestionar, puedeOperar, esAdministrador }}
+      value={{
+        token,
+        me,
+        login,
+        registrarEmpresa,
+        logout,
+        refrescarMe,
+        puedeGestionar,
+        puedeOperar,
+        esAdministrador,
+      }}
     >
       {children}
     </AuthContext.Provider>

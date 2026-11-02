@@ -9,4 +9,4 @@ class AvisoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Aviso
         fields = "__all__"
-        read_only_fields = ["numero", "fecha_reporte"]
+        read_only_fields = ["numero", "fecha_reporte", "empresa"]

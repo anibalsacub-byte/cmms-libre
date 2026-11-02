@@ -23,6 +23,21 @@ class SoloAdministracionEscribe(BasePermission):
         return _rol(request) in ("ADMINISTRADOR", "PLANIFICADOR")
 
 
+class SoloSuperusuarioEscribe(BasePermission):
+    """Lectura para cualquier usuario autenticado; escritura solo para el
+    superusuario de la plataforma. Pensado para catálogos GLOBALES
+    compartidos entre todas las empresas (ISO 14224, especialidades,
+    habilidades, grupos de material) — un alumno no debería poder editar
+    lo que ven todas las demás empresas."""
+
+    def has_permission(self, request, view):
+        if not _autenticado(request):
+            return False
+        if request.method in SAFE_METHODS:
+            return True
+        return bool(request.user.is_superuser)
+
+
 class TecnicoEscribeAdministracionGestiona(BasePermission):
     """Lectura para cualquier usuario autenticado. Técnicos y superiores
     pueden crear/editar (p. ej. actualizar una OT). Pensado para órdenes de

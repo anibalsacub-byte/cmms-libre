@@ -28,7 +28,8 @@ class Habilidad(models.Model):
 
 
 class Tecnico(models.Model):
-    codigo = models.CharField(max_length=20, unique=True)
+    empresa = models.ForeignKey("companies.Empresa", null=True, blank=True, on_delete=models.CASCADE, related_name="tecnicos")
+    codigo = models.CharField(max_length=20)
     nombre = models.CharField(max_length=150)
     especialidad = models.ForeignKey(
         Especialidad, on_delete=models.PROTECT, related_name="tecnicos"
@@ -52,6 +53,9 @@ class Tecnico(models.Model):
         verbose_name = "Técnico"
         verbose_name_plural = "Técnicos"
         ordering = ["codigo"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "codigo"], name="tecnico_empresa_codigo_unico")
+        ]
 
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"

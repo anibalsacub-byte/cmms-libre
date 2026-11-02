@@ -60,7 +60,7 @@ export default function Purchasing() {
                   <td className="px-4 py-2">{s.material_codigo}</td>
                   <td className="px-4 py-2 text-slate-500">{s.cantidad}</td>
                   <td className="px-4 py-2 text-slate-500">{FUENTE_LABELS[s.fuente]}</td>
-                  <td className="px-4 py-2 text-slate-500">${s.costo_estimado}</td>
+                  <td className="px-4 py-2 text-slate-500">S/ {s.costo_estimado}</td>
                   <td className="px-4 py-2 text-slate-500">{s.tiempo_estimado_horas}</td>
                   <td className="px-4 py-2 text-slate-500">{s.estado}</td>
                 </tr>
@@ -103,7 +103,7 @@ export default function Purchasing() {
                   </td>
                   <td className="px-4 py-2 text-slate-500">{o.cantidad}</td>
                   <td className="px-4 py-2 text-slate-500">{o.proveedor || '—'}</td>
-                  <td className="px-4 py-2 text-slate-500">${o.costo_estimado}</td>
+                  <td className="px-4 py-2 text-slate-500">S/ {o.costo_estimado}</td>
                   <td className="px-4 py-2 text-slate-500">{o.tiempo_entrega_dias}</td>
                   <td className="px-4 py-2 text-slate-500">{o.estado}</td>
                 </tr>

@@ -23,7 +23,8 @@ class Aviso(models.Model):
         ("CERRADO", "Cerrado"),
     ]
 
-    numero = models.CharField(max_length=20, unique=True, editable=False)
+    empresa = models.ForeignKey("companies.Empresa", null=True, blank=True, on_delete=models.CASCADE, related_name="avisos")
+    numero = models.CharField(max_length=20, editable=False)
     activo = models.ForeignKey(Activo, on_delete=models.PROTECT, related_name="avisos")
     reportado_por = models.CharField(max_length=150)
     fecha_reporte = models.DateTimeField(auto_now_add=True)
@@ -53,13 +54,15 @@ class Aviso(models.Model):
         verbose_name = "Aviso de mantenimiento"
         verbose_name_plural = "Avisos de mantenimiento"
         ordering = ["-fecha_reporte"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "numero"], name="aviso_empresa_numero_unico")
+        ]
 
     def __str__(self):
         return f"{self.numero} - {self.activo.codigo}"
 
     def save(self, *args, **kwargs):
         if not self.numero:
-            ultimo = Aviso.objects.order_by("-id").first()
-            siguiente = (ultimo.id + 1) if ultimo else 1
+            siguiente = Aviso.objects.filter(empresa=self.empresa).count() + 1
             self.numero = f"AV-{siguiente:06d}"
         super().save(*args, **kwargs)

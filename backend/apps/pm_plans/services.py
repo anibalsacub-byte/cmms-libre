@@ -6,17 +6,24 @@ from apps.workorders.models import OrdenTrabajo, TareaOT, BitacoraOT
 from .models import PlanPreventivo
 
 
-def generar_ordenes_pendientes(usuario=""):
-    """Revisa todos los planes activos y genera una OT preventiva para cada
-    uno que esté vencido (o dentro de su ventana de anticipación), avanzando
-    su próximo vencimiento."""
+def generar_ordenes_pendientes(empresa=None, usuario=""):
+    """Revisa los planes activos y genera una OT preventiva para cada uno
+    que esté vencido, avanzando su próximo vencimiento. Sin `empresa`,
+    recorre TODAS las empresas (pensado para el cron/comando programado);
+    con `empresa`, solo los planes de esa empresa (botón manual del
+    administrador de esa empresa)."""
+
+    planes = PlanPreventivo.objects.filter(activo_flag=True).select_related("activo")
+    if empresa is not None:
+        planes = planes.filter(activo__empresa=empresa)
 
     creadas = []
-    for plan in PlanPreventivo.objects.filter(activo_flag=True).select_related("activo"):
+    for plan in planes:
         if not plan.esta_vencido():
             continue
 
         orden = OrdenTrabajo.objects.create(
+            empresa=plan.activo.empresa,
             activo=plan.activo,
             tipo="PREVENTIVO",
             prioridad="MEDIA",

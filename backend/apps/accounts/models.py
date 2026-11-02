@@ -14,6 +14,14 @@ class PerfilUsuario(models.Model):
     usuario = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="perfil"
     )
+    empresa = models.ForeignKey(
+        "companies.Empresa",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="usuarios",
+        help_text="Espacio de datos del usuario; vacío solo para el superusuario de la plataforma.",
+    )
     rol = models.CharField(max_length=20, choices=ROL_CHOICES, default="SOLO_LECTURA")
     debe_cambiar_password = models.BooleanField(
         default=False,

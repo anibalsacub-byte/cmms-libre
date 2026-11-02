@@ -23,3 +23,4 @@ class TecnicoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tecnico
         fields = "__all__"
+        read_only_fields = ["empresa"]

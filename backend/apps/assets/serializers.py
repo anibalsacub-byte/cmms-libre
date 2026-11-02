@@ -8,12 +8,14 @@ class UbicacionTecnicaSerializer(serializers.ModelSerializer):
     class Meta:
         model = UbicacionTecnica
         fields = "__all__"
+        read_only_fields = ["empresa"]
 
 
 class ClaseActivoSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClaseActivo
         fields = "__all__"
+        read_only_fields = ["empresa"]
 
 
 class FichaTecnicaCampoSerializer(serializers.ModelSerializer):
@@ -32,3 +34,4 @@ class ActivoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Activo
         fields = "__all__"
+        read_only_fields = ["empresa"]

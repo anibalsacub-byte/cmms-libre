@@ -98,7 +98,7 @@ export default function Production() {
                       .join(', ')}
                   </td>
                   <td className="px-4 py-2 text-slate-500">{i.unidades_perdidas}</td>
-                  <td className="px-4 py-2 text-slate-500">${i.costo_impacto}</td>
+                  <td className="px-4 py-2 text-slate-500">S/ {i.costo_impacto}</td>
                 </tr>
               ))}
               {impactos.length === 0 && (

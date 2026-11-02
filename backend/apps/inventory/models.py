@@ -2,7 +2,8 @@ from django.db import models
 
 
 class Almacen(models.Model):
-    codigo = models.CharField(max_length=20, unique=True)
+    empresa = models.ForeignKey("companies.Empresa", null=True, blank=True, on_delete=models.CASCADE, related_name="almacenes")
+    codigo = models.CharField(max_length=20)
     nombre = models.CharField(max_length=150)
     ubicacion = models.CharField(max_length=150, blank=True)
 
@@ -10,6 +11,9 @@ class Almacen(models.Model):
         verbose_name = "Almacén"
         verbose_name_plural = "Almacenes"
         ordering = ["codigo"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "codigo"], name="almacen_empresa_codigo_unico")
+        ]
 
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
@@ -36,7 +40,8 @@ class Material(models.Model):
         ("BLOQUEADO", "Bloqueado"),
     ]
 
-    codigo = models.CharField(max_length=30, unique=True)
+    empresa = models.ForeignKey("companies.Empresa", null=True, blank=True, on_delete=models.CASCADE, related_name="materiales")
+    codigo = models.CharField(max_length=30)
     descripcion = models.CharField(max_length=255)
     grupo = models.ForeignKey(
         GrupoMaterial, on_delete=models.PROTECT, related_name="materiales"
@@ -53,6 +58,9 @@ class Material(models.Model):
         verbose_name = "Material"
         verbose_name_plural = "Materiales"
         ordering = ["codigo"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "codigo"], name="material_empresa_codigo_unico")
+        ]
 
     def __str__(self):
         return f"{self.codigo} - {self.descripcion}"

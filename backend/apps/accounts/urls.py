@@ -1,5 +1,11 @@
 from django.urls import path
-from .views import MeView, CambiarPasswordView, CargarDemoView, ReiniciarInstalacionView
+from .views import (
+    MeView,
+    CambiarPasswordView,
+    CargarDemoView,
+    ReiniciarInstalacionView,
+    RegistrarEmpresaView,
+)
 
 urlpatterns = [
     path("me/", MeView.as_view(), name="me"),
@@ -10,4 +16,5 @@ urlpatterns = [
         ReiniciarInstalacionView.as_view(),
         name="reiniciar-instalacion",
     ),
+    path("registrar-empresa/", RegistrarEmpresaView.as_view(), name="registrar-empresa"),
 ]

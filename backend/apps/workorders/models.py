@@ -31,7 +31,8 @@ class OrdenTrabajo(models.Model):
         ("CANCELADA", "Cancelada"),
     ]
 
-    numero = models.CharField(max_length=20, unique=True, editable=False)
+    empresa = models.ForeignKey("companies.Empresa", null=True, blank=True, on_delete=models.CASCADE, related_name="ordenes_trabajo")
+    numero = models.CharField(max_length=20, editable=False)
     aviso = models.ForeignKey(
         Aviso, null=True, blank=True, on_delete=models.SET_NULL, related_name="ordenes_trabajo"
     )
@@ -62,14 +63,16 @@ class OrdenTrabajo(models.Model):
         verbose_name = "Orden de trabajo"
         verbose_name_plural = "Órdenes de trabajo"
         ordering = ["-fecha_creacion"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "numero"], name="ordentrabajo_empresa_numero_unico")
+        ]
 
     def __str__(self):
         return f"{self.numero} - {self.activo.codigo}"
 
     def save(self, *args, **kwargs):
         if not self.numero:
-            ultimo = OrdenTrabajo.objects.order_by("-id").first()
-            siguiente = (ultimo.id + 1) if ultimo else 1
+            siguiente = OrdenTrabajo.objects.filter(empresa=self.empresa).count() + 1
             self.numero = f"OT-{siguiente:06d}"
         super().save(*args, **kwargs)
 

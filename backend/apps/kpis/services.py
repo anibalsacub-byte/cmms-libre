@@ -6,6 +6,9 @@ Fórmulas usadas (simplificadas para el MVP, documentadas en el README):
 - MTBF (Mean Time Between Failures) = horas operativas disponibles / número de fallas,
   donde "horas operativas disponibles" = (nº de activos activos x horas del periodo) - downtime.
 - Disponibilidad = horas operativas disponibles / horas totales del periodo = MTBF / (MTBF + MTTR).
+
+Todas las funciones reciben `empresa` y filtran únicamente los datos de esa
+empresa (multi-tenant: cada una ve solo lo suyo).
 """
 
 from datetime import timedelta
@@ -24,11 +27,11 @@ def rango_periodo(dias=30):
     return inicio, fin
 
 
-def kpis_mantenimiento(dias=30, activo_id=None):
+def kpis_mantenimiento(empresa, dias=30, activo_id=None):
     inicio, fin = rango_periodo(dias)
 
     ot_qs = OrdenTrabajo.objects.filter(
-        tipo="CORRECTIVO", fecha_creacion__gte=inicio, fecha_creacion__lte=fin
+        empresa=empresa, tipo="CORRECTIVO", fecha_creacion__gte=inicio, fecha_creacion__lte=fin
     )
     if activo_id:
         ot_qs = ot_qs.filter(activo_id=activo_id)
@@ -38,7 +41,7 @@ def kpis_mantenimiento(dias=30, activo_id=None):
         ot_qs.aggregate(total=Sum("tiempo_parada_horas"))["total"] or 0
     )
 
-    activos_qs = Activo.objects.filter(estado__in=["OPERATIVO", "EN_MANTENIMIENTO"])
+    activos_qs = Activo.objects.filter(empresa=empresa, estado__in=["OPERATIVO", "EN_MANTENIMIENTO"])
     if activo_id:
         activos_qs = activos_qs.filter(id=activo_id)
     n_activos = activos_qs.count() or 1
@@ -56,11 +59,11 @@ def kpis_mantenimiento(dias=30, activo_id=None):
 
     costo_total = sum(ot.costo_total for ot in ot_qs)
 
-    avisos_qs = Aviso.objects.filter(fecha_reporte__gte=inicio, fecha_reporte__lte=fin)
+    avisos_qs = Aviso.objects.filter(empresa=empresa, fecha_reporte__gte=inicio, fecha_reporte__lte=fin)
     if activo_id:
         avisos_qs = avisos_qs.filter(activo_id=activo_id)
 
-    todas_ot_qs = OrdenTrabajo.objects.all()
+    todas_ot_qs = OrdenTrabajo.objects.filter(empresa=empresa)
     if activo_id:
         todas_ot_qs = todas_ot_qs.filter(activo_id=activo_id)
     backlog = todas_ot_qs.exclude(estado__in=["CERRADA", "CANCELADA"]).count()
@@ -77,7 +80,7 @@ def kpis_mantenimiento(dias=30, activo_id=None):
             estado__in=["ABIERTO", "EN_EVALUACION"]
         ).count(),
         "avisos_totales_periodo": avisos_qs.count(),
-        "ordenes_trabajo_abiertas": OrdenTrabajo.objects.exclude(
+        "ordenes_trabajo_abiertas": OrdenTrabajo.objects.filter(empresa=empresa).exclude(
             estado__in=["CERRADA", "CANCELADA"]
         ).count(),
         "backlog": backlog,
@@ -89,12 +92,12 @@ def kpis_mantenimiento(dias=30, activo_id=None):
     }
 
 
-def pareto_fallas(dias=90, activo_id=None):
+def pareto_fallas(empresa, dias=90, activo_id=None):
     """Conteo de avisos por modo, mecanismo y causa de falla (ISO 14224),
     para priorizar qué atacar primero."""
 
     inicio, fin = rango_periodo(dias)
-    avisos = Aviso.objects.filter(fecha_reporte__gte=inicio, fecha_reporte__lte=fin)
+    avisos = Aviso.objects.filter(empresa=empresa, fecha_reporte__gte=inicio, fecha_reporte__lte=fin)
     if activo_id:
         avisos = avisos.filter(activo_id=activo_id)
 
@@ -143,9 +146,9 @@ def pareto_fallas(dias=90, activo_id=None):
     }
 
 
-def kpis_oee(dias=30, linea_id=None):
+def kpis_oee(empresa, dias=30, linea_id=None):
     inicio, _ = rango_periodo(dias)
-    qs = RegistroProduccion.objects.filter(fecha__gte=inicio.date())
+    qs = RegistroProduccion.objects.filter(linea__empresa=empresa, fecha__gte=inicio.date())
     if linea_id:
         qs = qs.filter(linea_id=linea_id)
 

@@ -22,6 +22,22 @@ export type Activo = {
   horas_operacion_acumuladas: string
 }
 
+export type ClaseActivo = {
+  id: number
+  codigo: string
+  nombre: string
+  descripcion: string
+}
+
+export type UbicacionTecnica = {
+  id: number
+  codigo: string
+  nombre: string
+  padre: number | null
+  nivel: number
+  ruta: string
+}
+
 export type Aviso = {
   id: number
   numero: string

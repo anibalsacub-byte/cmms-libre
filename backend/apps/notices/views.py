@@ -3,11 +3,12 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from apps.accounts.permissions import CualquieraCreaSoloAdministracionEdita
+from apps.companies.mixins import EmpresaScopedMixin
 from .models import Aviso
 from .serializers import AvisoSerializer
 
 
-class AvisoViewSet(viewsets.ModelViewSet):
+class AvisoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
     queryset = Aviso.objects.all().select_related("activo")
     serializer_class = AvisoSerializer
     permission_classes = [CualquieraCreaSoloAdministracionEdita]
@@ -27,6 +28,7 @@ class AvisoViewSet(viewsets.ModelViewSet):
             )
 
         orden = OrdenTrabajo.objects.create(
+            empresa=aviso.empresa,
             aviso=aviso,
             activo=aviso.activo,
             prioridad=aviso.prioridad,

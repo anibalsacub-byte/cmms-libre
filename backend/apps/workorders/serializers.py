@@ -72,7 +72,7 @@ class OrdenTrabajoSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrdenTrabajo
         fields = "__all__"
-        read_only_fields = ["numero", "fecha_creacion"]
+        read_only_fields = ["numero", "fecha_creacion", "empresa"]
 
 
 class OrdenTrabajoListSerializer(serializers.ModelSerializer):

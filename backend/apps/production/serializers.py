@@ -6,6 +6,7 @@ class LineaProduccionSerializer(serializers.ModelSerializer):
     class Meta:
         model = LineaProduccion
         fields = "__all__"
+        read_only_fields = ["empresa"]
 
 
 class RegistroProduccionSerializer(serializers.ModelSerializer):

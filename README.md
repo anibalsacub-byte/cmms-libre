@@ -74,6 +74,24 @@ La lectura (`GET`) está abierta a cualquier usuario autenticado; la escritura s
 DRF por módulo (`apps/accounts/permissions.py`). El frontend oculta del menú los módulos de gestión y deshabilita
 acciones según el rol devuelto por `GET /api/accounts/me/`.
 
+### Multiempresa (aislamiento de datos por empresa)
+
+`apps/companies` (`Empresa`): cada usuario pertenece a una empresa (`PerfilUsuario.empresa`) y **solo ve y edita
+los datos de la suya** — activos, avisos, OT, inventario, dashboard, etc. Pensado para que varios alumnos/grupos
+o clientes compartan la misma instalación (misma base de datos, incluso el mismo despliegue en la nube) sin que
+sus datos se mezclen.
+
+- **Alta de una empresa nueva**: pantalla pública **Crear mi empresa** (`/registro`, endpoint
+  `POST /api/accounts/registrar-empresa/`, sin autenticación previa) crea la `Empresa` y su primer usuario como
+  Administrador, con sesión iniciada al instante.
+- **Aislamiento**: `apps/companies/mixins.py::EmpresaScopedMixin` filtra cada `ViewSet` por la empresa del usuario
+  autenticado y rechaza (403) cualquier intento de leer o escribir datos de otra empresa, incluso por ID directo.
+- **Catálogos globales** (compartidos entre todas las empresas, de solo lectura salvo para un superusuario de
+  Django): taxonomía ISO 14224 (`apps/failures`), `Especialidad`, `Habilidad`, `GrupoMaterial`.
+- **Numeración** (`AV-000001`, `OT-000001`, ...) reinicia en 1 **por empresa**, no es global.
+- **Cargar demo / Restablecer instalación** (pantalla Configuración) actúan solo sobre los datos de la empresa del
+  usuario que los ejecuta; nunca tocan otras empresas.
+
 ### Mantenimiento preventivo
 
 `apps/pm_plans`: planes por **calendario** (cada N días) o por **horómetro** (cada N horas de uso del activo).

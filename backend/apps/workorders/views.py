@@ -6,6 +6,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from apps.accounts.permissions import TecnicoEscribeAdministracionGestiona
+from apps.companies.mixins import EmpresaScopedMixin
 from .models import (
     OrdenTrabajo,
     TareaOT,
@@ -25,7 +26,7 @@ from .serializers import (
 )
 
 
-class OrdenTrabajoViewSet(viewsets.ModelViewSet):
+class OrdenTrabajoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
     queryset = OrdenTrabajo.objects.all().select_related("activo", "tecnico_principal", "aviso")
     permission_classes = [TecnicoEscribeAdministracionGestiona]
     filterset_fields = ["estado", "tipo", "prioridad", "activo", "tecnico_principal"]
@@ -37,7 +38,7 @@ class OrdenTrabajoViewSet(viewsets.ModelViewSet):
         return OrdenTrabajoSerializer
 
     def perform_create(self, serializer):
-        orden = serializer.save()
+        orden = serializer.save(empresa=self._empresa())
         BitacoraOT.objects.create(
             orden_trabajo=orden,
             usuario=self.request.data.get("usuario", ""),
@@ -75,6 +76,8 @@ class OrdenTrabajoViewSet(viewsets.ModelViewSet):
         orden.trabajo_realizado = request.data.get(
             "trabajo_realizado", orden.trabajo_realizado
         )
+        if "tiempo_parada_horas" in request.data:
+            orden.tiempo_parada_horas = request.data.get("tiempo_parada_horas") or 0
         orden.save()
         BitacoraOT.objects.create(
             orden_trabajo=orden,
@@ -132,36 +135,46 @@ class OrdenTrabajoViewSet(viewsets.ModelViewSet):
         return response
 
 
-class TareaOTViewSet(viewsets.ModelViewSet):
+class TareaOTViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
     queryset = TareaOT.objects.all()
     serializer_class = TareaOTSerializer
     permission_classes = [TecnicoEscribeAdministracionGestiona]
     filterset_fields = ["orden_trabajo", "completada"]
+    empresa_lookup = "orden_trabajo__empresa"
+    parent_field = "orden_trabajo"
 
 
-class AsignacionTecnicoViewSet(viewsets.ModelViewSet):
+class AsignacionTecnicoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
     queryset = AsignacionTecnico.objects.all().select_related("tecnico")
     serializer_class = AsignacionTecnicoSerializer
     permission_classes = [TecnicoEscribeAdministracionGestiona]
     filterset_fields = ["orden_trabajo", "tecnico", "fecha"]
+    empresa_lookup = "orden_trabajo__empresa"
+    parent_field = "orden_trabajo"
 
 
-class MaterialUtilizadoViewSet(viewsets.ModelViewSet):
+class MaterialUtilizadoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
     queryset = MaterialUtilizado.objects.all().select_related("material")
     serializer_class = MaterialUtilizadoSerializer
     permission_classes = [TecnicoEscribeAdministracionGestiona]
     filterset_fields = ["orden_trabajo", "material", "fuente"]
+    empresa_lookup = "orden_trabajo__empresa"
+    parent_field = "orden_trabajo"
 
 
-class IntentoReparacionViewSet(viewsets.ModelViewSet):
+class IntentoReparacionViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
     queryset = IntentoReparacion.objects.all()
     serializer_class = IntentoReparacionSerializer
     permission_classes = [TecnicoEscribeAdministracionGestiona]
     filterset_fields = ["orden_trabajo"]
+    empresa_lookup = "orden_trabajo__empresa"
+    parent_field = "orden_trabajo"
 
 
-class BitacoraOTViewSet(viewsets.ModelViewSet):
+class BitacoraOTViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
     queryset = BitacoraOT.objects.all()
     serializer_class = BitacoraOTSerializer
     permission_classes = [TecnicoEscribeAdministracionGestiona]
     filterset_fields = ["orden_trabajo"]
+    empresa_lookup = "orden_trabajo__empresa"
+    parent_field = "orden_trabajo"

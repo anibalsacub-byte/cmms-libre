@@ -32,7 +32,7 @@ export default function Technicians() {
                 <td className="px-4 py-2">{t.nombre}</td>
                 <td className="px-4 py-2 text-slate-500">{t.especialidad_nombre}</td>
                 <td className="px-4 py-2 text-slate-500">{t.habilidades_nombres.join(', ')}</td>
-                <td className="px-4 py-2 text-slate-500">${t.tarifa_hora}</td>
+                <td className="px-4 py-2 text-slate-500">S/ {t.tarifa_hora}</td>
                 <td className="px-4 py-2 text-slate-500">{t.productividad_pct}%</td>
                 <td className="px-4 py-2">
                   {t.disponible ? (

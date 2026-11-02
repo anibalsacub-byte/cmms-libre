@@ -6,6 +6,7 @@ class AlmacenSerializer(serializers.ModelSerializer):
     class Meta:
         model = Almacen
         fields = "__all__"
+        read_only_fields = ["empresa"]
 
 
 class GrupoMaterialSerializer(serializers.ModelSerializer):
@@ -21,6 +22,7 @@ class MaterialSerializer(serializers.ModelSerializer):
     class Meta:
         model = Material
         fields = "__all__"
+        read_only_fields = ["empresa"]
 
     def get_stock_total(self, obj):
         return sum(float(s.cantidad) for s in obj.stocks.all())

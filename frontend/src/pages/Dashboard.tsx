@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { api } from '../api/client'
-import type { DashboardData } from '../types'
+import type { Activo, DashboardData, Paginated } from '../types'
 
 function KpiCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -16,10 +16,17 @@ function KpiCard({ label, value, hint }: { label: string; value: string; hint?: 
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [dias, setDias] = useState(30)
+  const [activos, setActivos] = useState<Activo[]>([])
+  const [activoId, setActivoId] = useState('')
 
   useEffect(() => {
-    api.get<DashboardData>(`/kpis/dashboard/?dias=${dias}`).then((res) => setData(res.data))
-  }, [dias])
+    api.get<Paginated<Activo>>('/assets/activos/').then((res) => setActivos(res.data.results))
+  }, [])
+
+  useEffect(() => {
+    const filtro = activoId ? `&activo=${activoId}` : ''
+    api.get<DashboardData>(`/kpis/dashboard/?dias=${dias}${filtro}`).then((res) => setData(res.data))
+  }, [dias, activoId])
 
   if (!data) return <p className="text-slate-500">Cargando indicadores...</p>
 
@@ -33,15 +40,29 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-slate-800">Panel de mantenimiento</h1>
-        <select
-          value={dias}
-          onChange={(e) => setDias(Number(e.target.value))}
-          className="rounded-md border border-slate-300 text-sm px-3 py-1.5 bg-white"
-        >
-          <option value={7}>Últimos 7 días</option>
-          <option value={30}>Últimos 30 días</option>
-          <option value={90}>Últimos 90 días</option>
-        </select>
+        <div className="flex gap-2">
+          <select
+            value={activoId}
+            onChange={(e) => setActivoId(e.target.value)}
+            className="rounded-md border border-slate-300 text-sm px-3 py-1.5 bg-white"
+          >
+            <option value="">Todos los activos</option>
+            {activos.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.codigo} - {a.nombre}
+              </option>
+            ))}
+          </select>
+          <select
+            value={dias}
+            onChange={(e) => setDias(Number(e.target.value))}
+            className="rounded-md border border-slate-300 text-sm px-3 py-1.5 bg-white"
+          >
+            <option value={7}>Últimos 7 días</option>
+            <option value={30}>Últimos 30 días</option>
+            <option value={90}>Últimos 90 días</option>
+          </select>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -53,7 +74,7 @@ export default function Dashboard() {
         <KpiCard label="Avisos abiertos" value={`${mantenimiento.avisos_abiertos}`} />
         <KpiCard
           label="Costo mantenimiento"
-          value={`$${mantenimiento.costo_mantenimiento.toLocaleString()}`}
+          value={`S/ ${mantenimiento.costo_mantenimiento.toLocaleString()}`}
         />
         <KpiCard label="OEE" value={`${oee.oee}%`} hint="Disponibilidad x Rendimiento x Calidad" />
       </div>

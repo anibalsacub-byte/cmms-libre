@@ -4,7 +4,8 @@ from django.db import models
 class UbicacionTecnica(models.Model):
     """Jerarquía de planta (ISO 55000 / estilo SAP PM: planta > área > línea > sistema)."""
 
-    codigo = models.CharField(max_length=30, unique=True)
+    empresa = models.ForeignKey("companies.Empresa", null=True, blank=True, on_delete=models.CASCADE, related_name="ubicaciones_tecnicas")
+    codigo = models.CharField(max_length=30)
     nombre = models.CharField(max_length=150)
     padre = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.CASCADE, related_name="hijos"
@@ -16,6 +17,9 @@ class UbicacionTecnica(models.Model):
         verbose_name = "Ubicación técnica"
         verbose_name_plural = "Ubicaciones técnicas"
         ordering = ["codigo"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "codigo"], name="ubicaciontecnica_empresa_codigo_unico")
+        ]
 
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
@@ -33,7 +37,8 @@ class UbicacionTecnica(models.Model):
 
 
 class ClaseActivo(models.Model):
-    codigo = models.CharField(max_length=30, unique=True)
+    empresa = models.ForeignKey("companies.Empresa", null=True, blank=True, on_delete=models.CASCADE, related_name="clases_activo")
+    codigo = models.CharField(max_length=30)
     nombre = models.CharField(max_length=150)
     descripcion = models.TextField(blank=True)
 
@@ -41,6 +46,9 @@ class ClaseActivo(models.Model):
         verbose_name = "Clase de activo"
         verbose_name_plural = "Clases de activo"
         ordering = ["codigo"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "codigo"], name="claseactivo_empresa_codigo_unico")
+        ]
 
     def __str__(self):
         return self.nombre
@@ -61,7 +69,8 @@ class Activo(models.Model):
         ("DADO_DE_BAJA", "Dado de baja"),
     ]
 
-    codigo = models.CharField(max_length=30, unique=True)
+    empresa = models.ForeignKey("companies.Empresa", null=True, blank=True, on_delete=models.CASCADE, related_name="activos")
+    codigo = models.CharField(max_length=30)
     nombre = models.CharField(max_length=150)
     clase = models.ForeignKey(ClaseActivo, on_delete=models.PROTECT, related_name="activos")
     ubicacion_tecnica = models.ForeignKey(
@@ -95,6 +104,9 @@ class Activo(models.Model):
         verbose_name = "Activo"
         verbose_name_plural = "Activos"
         ordering = ["codigo"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "codigo"], name="activo_empresa_codigo_unico")
+        ]
 
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"

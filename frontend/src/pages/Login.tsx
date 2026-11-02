@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function Login() {
@@ -61,6 +61,12 @@ export default function Login() {
           Instalación nueva: usuario <strong>admin</strong>, contraseña inicial{' '}
           <strong>CambiarAhora123</strong> (te pedirá cambiarla). Si cargaste datos de demo:{' '}
           <strong>admin / admin12345</strong>.
+        </p>
+        <p className="text-xs text-slate-500 text-center">
+          ¿Eres nuevo?{' '}
+          <Link to="/registro" className="text-slate-700 underline">
+            Crea tu propia empresa
+          </Link>
         </p>
       </form>
     </div>
