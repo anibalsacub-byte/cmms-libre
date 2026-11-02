@@ -37,22 +37,8 @@ import config.urls  # noqa: E402,F401  (idem, arrastra config.views; requiere se
 from django.conf import settings  # noqa: E402
 from django.contrib.auth.models import User  # noqa: E402
 from django.core.management import call_command  # noqa: E402
-
-PASSWORD_INICIAL = "CambiarAhora123"
-
-
-def crear_admin_inicial():
-    user = User.objects.create_superuser("admin", "admin@cmms.local", PASSWORD_INICIAL)
-    perfil = user.perfil
-    perfil.debe_cambiar_password = True
-    perfil.save(update_fields=["debe_cambiar_password"])
-
-    print("=" * 60)
-    print("Instalación nueva y vacía. Entra con:")
-    print("  Usuario:     admin")
-    print(f"  Contraseña:  {PASSWORD_INICIAL}")
-    print("La app te pedirá cambiarla antes de dejarte usar el resto.")
-    print("=" * 60)
+from apps.accounts.constants import PASSWORD_INICIAL  # noqa: E402
+from apps.accounts.setup import crear_admin_inicial  # noqa: E402
 
 
 def preparar_base_de_datos(cargar_demo: bool):
@@ -74,6 +60,16 @@ def preparar_base_de_datos(cargar_demo: bool):
         return
 
     crear_admin_inicial()
+    print("=" * 60)
+    print("Instalación nueva y vacía. Entra con:")
+    print("  Usuario:     admin")
+    print(f"  Contraseña:  {PASSWORD_INICIAL}")
+    print("La app te pedirá cambiarla antes de dejarte usar el resto.")
+    print(
+        "(Un administrador puede cargar datos de demo o restablecer todo "
+        "desde Configuración dentro de la app, sin consola.)"
+    )
+    print("=" * 60)
 
 
 def abrir_navegador(url: str, retraso: float = 1.2):

@@ -21,6 +21,7 @@ type AuthContextValue = {
   refrescarMe: () => Promise<void>
   puedeGestionar: boolean
   puedeOperar: boolean
+  esAdministrador: boolean
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -57,10 +58,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const puedeGestionar = me?.rol === 'ADMINISTRADOR' || me?.rol === 'PLANIFICADOR'
   const puedeOperar = puedeGestionar || me?.rol === 'TECNICO'
+  const esAdministrador = me?.rol === 'ADMINISTRADOR'
 
   return (
     <AuthContext.Provider
-      value={{ token, me, login, logout, refrescarMe, puedeGestionar, puedeOperar }}
+      value={{ token, me, login, logout, refrescarMe, puedeGestionar, puedeOperar, esAdministrador }}
     >
       {children}
     </AuthContext.Provider>

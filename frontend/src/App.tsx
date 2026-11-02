@@ -15,6 +15,7 @@ import Purchasing from './pages/Purchasing'
 import Production from './pages/Production'
 import PreventivePlans from './pages/PreventivePlans'
 import Reports from './pages/Reports'
+import Settings from './pages/Settings'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuth()
@@ -25,6 +26,12 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 function RequierePasswordOk({ children }: { children: React.ReactNode }) {
   const { me } = useAuth()
   if (me?.debe_cambiar_password) return <Navigate to="/cambiar-password" replace />
+  return <>{children}</>
+}
+
+function RequiereAdmin({ children }: { children: React.ReactNode }) {
+  const { me, esAdministrador } = useAuth()
+  if (me && !esAdministrador) return <Navigate to="/" replace />
   return <>{children}</>
 }
 
@@ -62,6 +69,14 @@ function AppRoutes() {
         <Route path="preventivo" element={<PreventivePlans />} />
         <Route path="reportes" element={<Reports />} />
         <Route path="tecnicos" element={<Technicians />} />
+        <Route
+          path="configuracion"
+          element={
+            <RequiereAdmin>
+              <Settings />
+            </RequiereAdmin>
+          }
+        />
       </Route>
     </Routes>
   )

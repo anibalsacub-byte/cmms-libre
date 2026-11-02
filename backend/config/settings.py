@@ -45,7 +45,20 @@ DEBUG = os.environ.get(
     "DEBUG", "false" if getattr(sys, "frozen", False) else "true"
 ).lower() == "true"
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+ALLOWED_HOSTS = [
+    h for h in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h
+]
+# Render asigna el dominio público en esta variable; se agrega sola, sin
+# tener que conocerla de antemano al configurar ALLOWED_HOSTS a mano. Render
+# termina el HTTPS en su proxy y reenvía por HTTP puertas adentro, así que
+# también hay que decirle a Django que confíe en el encabezado que indica
+# que el pedido original sí llegó por HTTPS (si no, el admin/CSRF fallan).
+CSRF_TRUSTED_ORIGINS = []
+if os.environ.get("RENDER_EXTERNAL_HOSTNAME"):
+    _render_host = os.environ["RENDER_EXTERNAL_HOSTNAME"]
+    ALLOWED_HOSTS.append(_render_host)
+    CSRF_TRUSTED_ORIGINS.append(f"https://{_render_host}")
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 
 INSTALLED_APPS = [
@@ -106,10 +119,20 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 
 # Database.
-# SQLite por defecto para arrancar sin dependencias; para producción, definir
-# DATABASE_URL (ej. postgres://usuario:clave@host:5432/cmms) o las variables
-# POSTGRES_* y USE_POSTGRES=true.
-if os.environ.get("USE_POSTGRES", "false").lower() == "true":
+# SQLite por defecto para arrancar sin dependencias (desarrollo local, .exe).
+# Para producción en la nube (Render + Neon/Supabase/etc.), definir la
+# variable DATABASE_URL (postgres://usuario:clave@host:5432/basededatos).
+# También se acepta USE_POSTGRES=true con las variables POSTGRES_* sueltas,
+# por si se prefiere configurarlo campo a campo en vez de una URL.
+if os.environ.get("DATABASE_URL"):
+    import dj_database_url
+
+    DATABASES = {
+        "default": dj_database_url.parse(
+            os.environ["DATABASE_URL"], conn_max_age=600, ssl_require=True
+        )
+    }
+elif os.environ.get("USE_POSTGRES", "false").lower() == "true":
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",

@@ -28,13 +28,20 @@ urlpatterns = [
     re_path(
         r"^media/(?P<path>.*)$", serve_static, {"document_root": settings.MEDIA_ROOT}
     ),
-    # En desarrollo, usa el finder de staticfiles (busca en cada app, p. ej.
-    # admin/DRF) sin depender de `collectstatic`. En el .exe empaquetado,
-    # sirve desde la carpeta pre-recolectada (ver settings.STATIC_BUNDLE_DIR).
+    # En desarrollo y en la nube, usa el finder de staticfiles (busca en cada
+    # app, p. ej. admin/DRF) sin depender de `collectstatic`; `insecure=True`
+    # es necesario porque esa vista se niega a correr con DEBUG=False si no
+    # se le pide explícitamente (pensada para apps chicas como esta, sin un
+    # servidor de estáticos aparte). En el .exe empaquetado, sirve desde la
+    # carpeta pre-recolectada (ver settings.STATIC_BUNDLE_DIR).
     re_path(
         r"^static/(?P<path>.*)$",
         serve_static if settings.STATIC_BUNDLE_DIR else serve_staticfiles,
-        {"document_root": settings.STATIC_BUNDLE_DIR} if settings.STATIC_BUNDLE_DIR else {},
+        (
+            {"document_root": settings.STATIC_BUNDLE_DIR}
+            if settings.STATIC_BUNDLE_DIR
+            else {"insecure": True}
+        ),
     ),
 ]
 

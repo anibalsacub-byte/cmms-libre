@@ -162,8 +162,13 @@ El frontend espera la API en `http://127.0.0.1:8000/api` (configurable con `VITE
 
 ## Aplicación de escritorio (.exe)
 
-Para distribuirlo sin que el usuario instale Python ni Node (pymes, aula, pendrive), todo el software —
-backend, frontend ya compilado y base de datos SQLite— se empaqueta en **un solo ejecutable de Windows**:
+> ⚠️ Windows (Smart App Control) bloquea por defecto los `.exe` sin firma digital y poco usados, sin dar opción
+> de "ejecutar de todas formas" — pasó incluso en una PC personal normal durante las pruebas. Útil para correrlo
+> vos mismo o en una PC puntual, pero **no es confiable para repartirlo a muchas personas**: para eso, mejor usar
+> el [despliegue en la nube](#despliegue-en-la-nube-recomendado-para-compartir-con-varios-usuarios) de más abajo.
+
+Para correrlo sin instalar Python ni Node (pendrive, una PC puntual), todo el software — backend, frontend ya
+compilado y base de datos SQLite— se empaqueta en **un solo ejecutable de Windows**:
 
 ```bash
 construir_exe_windows.bat
@@ -208,6 +213,31 @@ cd backend
 .venv\Scripts\python manage.py collectstatic --noinput   # solo necesario para /admin/ con estilos
 .venv\Scripts\python iniciar.py
 ```
+
+## Despliegue en la nube (recomendado para compartir con varios usuarios)
+
+Windows bloquea por defecto los ejecutables sin firma digital y poco difundidos (**Smart App Control**), así que
+el `.exe` no es confiable para repartirlo a mucha gente — algunos directamente no van a poder abrirlo. La
+alternativa sin ese problema es desplegarlo como sitio web: la gente entra por un link, no hay nada que instalar
+ni que Windows pueda bloquear.
+
+El repo ya trae todo listo (`Dockerfile`, `render.yaml`) para desplegarlo gratis en **[Render](https://render.com)**
+(hosting) + **[Neon](https://neon.tech)** (base de datos PostgreSQL gratuita y persistente). Pasos:
+
+1. **Crea una base de datos gratis en Neon**: cuenta nueva → "New Project" → copia el `DATABASE_URL` que te dan
+   (empieza con `postgres://...`).
+2. **Crea una cuenta en Render** y conecta tu repositorio de GitHub (`anibalsacub-byte/cmms-libre`).
+3. Elige **"New +" → "Blueprint"**: Render detecta `render.yaml` solo y configura el servicio.
+4. Cuando te pida la variable `DATABASE_URL`, pega la de Neon del paso 1.
+5. Deploy. Render te da una URL tipo `https://cmms-libre-xxxx.onrender.com` — esa es la que compartes.
+
+Notas del plan gratuito de Render: el servicio "duerme" tras 15 minutos sin uso, y la primera visita después de
+eso tarda ~30-50 segundos en responder mientras despierta (las siguientes son normales). Para una clase o una
+pyme chica es una limitación menor; si molesta, Render tiene planes pagos que no duermen.
+
+El primer arranque crea el mismo usuario `admin` / `CambiarAhora123` (cambio de contraseña obligatorio) que el
+`.exe`, y desde **Configuración** (dentro de la app, como Administrador) se puede cargar la empresa de ejemplo o
+restablecer la instalación — igual que en el `.exe`, sin tocar la terminal.
 
 ## Licencia
 
