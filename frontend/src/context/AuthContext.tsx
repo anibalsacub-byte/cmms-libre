@@ -10,6 +10,7 @@ export type Me = {
   rol: Rol
   rol_display: string
   tecnico_id: number | null
+  debe_cambiar_password: boolean
 }
 
 type AuthContextValue = {
@@ -17,6 +18,7 @@ type AuthContextValue = {
   me: Me | null
   login: (username: string, password: string) => Promise<void>
   logout: () => void
+  refrescarMe: () => Promise<void>
   puedeGestionar: boolean
   puedeOperar: boolean
 }
@@ -27,12 +29,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(localStorage.getItem('cmms_token'))
   const [me, setMe] = useState<Me | null>(null)
 
+  async function refrescarMe() {
+    const { data } = await api.get<Me>('/accounts/me/')
+    setMe(data)
+  }
+
   useEffect(() => {
     if (!token) {
       setMe(null)
       return
     }
-    api.get<Me>('/accounts/me/').then((res) => setMe(res.data))
+    refrescarMe()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
   async function login(username: string, password: string) {
@@ -51,7 +59,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const puedeOperar = puedeGestionar || me?.rol === 'TECNICO'
 
   return (
-    <AuthContext.Provider value={{ token, me, login, logout, puedeGestionar, puedeOperar }}>
+    <AuthContext.Provider
+      value={{ token, me, login, logout, refrescarMe, puedeGestionar, puedeOperar }}
+    >
       {children}
     </AuthContext.Provider>
   )

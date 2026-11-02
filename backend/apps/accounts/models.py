@@ -15,6 +15,10 @@ class PerfilUsuario(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="perfil"
     )
     rol = models.CharField(max_length=20, choices=ROL_CHOICES, default="SOLO_LECTURA")
+    debe_cambiar_password = models.BooleanField(
+        default=False,
+        help_text="Obliga a cambiar la contraseña antes de usar el resto de la app.",
+    )
     tecnico = models.ForeignKey(
         "hr.Tecnico",
         null=True,

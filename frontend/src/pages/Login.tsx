@@ -57,7 +57,11 @@ export default function Login() {
         >
           {loading ? 'Ingresando...' : 'Ingresar'}
         </button>
-        <p className="text-xs text-slate-400">Demo: admin / admin12345</p>
+        <p className="text-xs text-slate-400">
+          Instalación nueva: usuario <strong>admin</strong>, contraseña inicial{' '}
+          <strong>CambiarAhora123</strong> (te pedirá cambiarla). Si cargaste datos de demo:{' '}
+          <strong>admin / admin12345</strong>.
+        </p>
       </form>
     </div>
   )

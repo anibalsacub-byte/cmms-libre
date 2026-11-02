@@ -1,13 +1,21 @@
 """Punto de entrada para correr CMMS Libre como aplicación de escritorio:
-levanta el backend (con el frontend ya compilado servido en la misma URL),
-carga los usuarios y datos de demostración si la base está vacía, y abre
-el navegador.
+levanta el backend (con el frontend ya compilado servido en la misma URL)
+y abre el navegador.
+
+Por defecto la base de datos **nace vacía**: solo se crea un usuario
+`admin` con una contraseña conocida que hay que cambiar obligatoriamente
+en el primer ingreso (pensado para enseñar a usarlo desde cero, igual que
+una planilla de Excel en blanco, o para una empresa real que carga sus
+propios datos).
 
 Uso:
-    python iniciar.py [--puerto 8000] [--red] [--sin-navegador]
+    python iniciar.py [--puerto 8000] [--red] [--sin-navegador] [--demo]
 
 --red           escucha en 0.0.0.0 (otras PCs de la red local pueden entrar)
 --sin-navegador no abre el navegador automáticamente
+--demo          en vez de nacer vacío, carga una empresa de ejemplo ya
+                llena (activos, avisos, OT, inventario...) con varios
+                usuarios de demostración, uno por rol
 """
 
 import argparse
@@ -30,22 +38,42 @@ from django.conf import settings  # noqa: E402
 from django.contrib.auth.models import User  # noqa: E402
 from django.core.management import call_command  # noqa: E402
 
+PASSWORD_INICIAL = "CambiarAhora123"
 
-def preparar_base_de_datos():
+
+def crear_admin_inicial():
+    user = User.objects.create_superuser("admin", "admin@cmms.local", PASSWORD_INICIAL)
+    perfil = user.perfil
+    perfil.debe_cambiar_password = True
+    perfil.save(update_fields=["debe_cambiar_password"])
+
+    print("=" * 60)
+    print("Instalación nueva y vacía. Entra con:")
+    print("  Usuario:     admin")
+    print(f"  Contraseña:  {PASSWORD_INICIAL}")
+    print("La app te pedirá cambiarla antes de dejarte usar el resto.")
+    print("=" * 60)
+
+
+def preparar_base_de_datos(cargar_demo: bool):
     call_command("migrate", verbosity=0, interactive=False)
 
     if User.objects.exists():
         return
 
-    call_command("seed_demo")
-    print("=" * 60)
-    print("Usuarios de demostración creados (contraseña entre paréntesis):")
-    print("  admin           (admin12345)   - Administrador")
-    print("  planificador1   (demo12345)    - Planificador")
-    print("  tecnico1        (demo12345)    - Técnico")
-    print("  solicitante1    (demo12345)    - Solicitante")
-    print("  lector1         (demo12345)    - Solo lectura")
-    print("=" * 60)
+    if cargar_demo:
+        call_command("seed_demo")
+        print("=" * 60)
+        print("Usuarios de demostración creados (contraseña entre paréntesis):")
+        print("  admin           (admin12345)   - Administrador")
+        print("  planificador1   (demo12345)    - Planificador")
+        print("  tecnico1        (demo12345)    - Técnico")
+        print("  solicitante1    (demo12345)    - Solicitante")
+        print("  lector1         (demo12345)    - Solo lectura")
+        print("=" * 60)
+        return
+
+    crear_admin_inicial()
 
 
 def abrir_navegador(url: str, retraso: float = 1.2):
@@ -57,10 +85,15 @@ def main():
     parser.add_argument("--puerto", type=int, default=8000)
     parser.add_argument("--red", action="store_true")
     parser.add_argument("--sin-navegador", action="store_true")
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Carga una empresa de ejemplo en vez de nacer vacío.",
+    )
     args = parser.parse_args()
 
     host = "0.0.0.0" if args.red else "127.0.0.1"
-    preparar_base_de_datos()
+    preparar_base_de_datos(cargar_demo=args.demo)
 
     url = f"http://127.0.0.1:{args.puerto}/"
     print(f"CMMS Libre escuchando en {url}" + (" (y en la red local)" if args.red else ""))

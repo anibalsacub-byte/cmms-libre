@@ -172,10 +172,22 @@ construir_exe_windows.bat
 El script compila el frontend, recolecta los estáticos del admin y empaqueta con PyInstaller. El resultado queda
 en `backend\dist\CMMSLibre.exe` (~25 MB, un solo archivo, nada más que copiar).
 
-Al ejecutarlo:
+Al ejecutarlo por primera vez (base de datos vacía), hay dos modos:
 
-1. Aplica las migraciones y, si la base está vacía (primera vez), carga los usuarios y datos de demostración
-   (los mismos de la tabla de más arriba: `admin/admin12345`, `planificador1/demo12345`, etc.).
+- **Por defecto: nace vacío**, como una planilla de Excel en blanco. Solo se crea el usuario `admin` con la
+  contraseña inicial `CambiarAhora123`, que la app **obliga a cambiar** antes de dejar usar el resto — pensado
+  tanto para una empresa real que carga sus propios activos y OT, como para enseñar a usarlo desde cero (el
+  instructor va mostrando cómo llenar cada módulo con datos propios).
+- **`CMMSLibre.exe --demo`**: en vez de nacer vacío, carga una empresa de ejemplo ya llena (activos, avisos, OT,
+  inventario, planes preventivos...) con los 5 usuarios de la tabla de más arriba (`admin/admin12345`, etc.), sin
+  pedir cambio de contraseña — para mostrar rápido cómo se ve el sistema en uso.
+
+Luego de la primera vez, el programa simplemente arranca con lo que ya haya en la base de datos (ignora
+`--demo`).
+
+Siempre:
+
+1. Aplica las migraciones pendientes.
 2. Abre el navegador en `http://127.0.0.1:8000/` — ahí vive **todo**: frontend, API y `/admin/`.
 3. Los datos (`db.sqlite3`, adjuntos) se guardan en `%LOCALAPPDATA%\CMMSLibre`, nunca dentro del `.exe`. Para
    arrancar de cero, cierra el programa y borra esa carpeta.
@@ -184,6 +196,7 @@ Opciones de línea de comandos (`CMMSLibre.exe --help` o ver `backend/iniciar.py
 
 | Flag | Qué hace |
 | --- | --- |
+| `--demo` | Solo en el primer arranque: carga la empresa de ejemplo en vez de nacer vacío |
 | `--puerto 8000` | Puerto donde escuchar (por defecto 8000) |
 | `--red` | Escucha en `0.0.0.0`: otras PCs de la red local pueden entrar |
 | `--sin-navegador` | No abre el navegador automáticamente |
