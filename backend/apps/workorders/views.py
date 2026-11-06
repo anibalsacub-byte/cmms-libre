@@ -146,12 +146,29 @@ class TareaOTViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
 
 
 class AsignacionTecnicoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
+    """Las horas de técnico, igual que los materiales, se pueden agregar y
+    quitar libremente mientras la OT siga abierta."""
+
     queryset = AsignacionTecnico.objects.all().select_related("tecnico")
     serializer_class = AsignacionTecnicoSerializer
     permission_classes = [TecnicoEscribeAdministracionGestiona]
     filterset_fields = ["orden_trabajo", "tecnico", "fecha"]
     empresa_lookup = "orden_trabajo__empresa"
     parent_field = "orden_trabajo"
+
+    def _verificar_ot_abierta(self, orden_trabajo):
+        if orden_trabajo.estado in ("CERRADA", "CANCELADA"):
+            raise PermissionDenied("La OT ya está cerrada; no se pueden modificar sus horas registradas.")
+
+    def perform_create(self, serializer):
+        orden = serializer.validated_data.get("orden_trabajo")
+        if orden is not None:
+            self._verificar_ot_abierta(orden)
+        super().perform_create(serializer)
+
+    def perform_destroy(self, instance):
+        self._verificar_ot_abierta(instance.orden_trabajo)
+        instance.delete()
 
 
 class MaterialUtilizadoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
