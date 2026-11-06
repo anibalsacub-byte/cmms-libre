@@ -68,6 +68,7 @@ export type OrdenTrabajo = {
 }
 
 export type OrdenTrabajoDetalle = OrdenTrabajo & {
+  activo_nombre: string
   descripcion: string
   diagnostico: string
   trabajo_realizado: string
