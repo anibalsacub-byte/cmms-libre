@@ -2,15 +2,18 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
+from rest_framework import status, viewsets
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework import status
 from rest_framework.authtoken.models import Token
 from .serializers import (
     MeSerializer,
     CambiarPasswordSerializer,
     RegistrarEmpresaSerializer,
+    UsuarioSerializer,
 )
 from .models import PerfilUsuario
 
@@ -134,3 +137,88 @@ class ReiniciarInstalacionView(APIView):
 
         borrar_datos_empresa(request.user.perfil.empresa)
         return Response({"detail": "Los datos de tu empresa fueron borrados."})
+
+
+class UsuarioViewSet(viewsets.ModelViewSet):
+    """El Administrador de la empresa crea y gestiona las cuentas de sus
+    técnicos, planificadores, supervisores, etc. Cada uno entra con su
+    propio usuario y solo puede hacer lo que su rol permite; si alguien
+    necesita un cambio que su rol no permite, se lo pide al Administrador,
+    que sí tiene acceso a todo."""
+
+    serializer_class = UsuarioSerializer
+    permission_classes = [SoloAdminDeEmpresa]
+
+    def get_queryset(self):
+        empresa = self.request.user.perfil.empresa
+        return (
+            User.objects.filter(perfil__empresa=empresa)
+            .select_related("perfil", "perfil__tecnico")
+            .order_by("username")
+        )
+
+    def _verificar_tecnico(self, tecnico, empresa):
+        if tecnico is not None and tecnico.empresa_id != empresa.id:
+            raise PermissionDenied("Ese técnico pertenece a otra empresa.")
+
+    def perform_create(self, serializer):
+        empresa = self.request.user.perfil.empresa
+        password = serializer.validated_data.pop("password", None)
+        perfil_data = serializer.validated_data.pop("perfil", {})
+        if not password:
+            raise DRFValidationError({"password": ["La contraseña es obligatoria al crear un usuario."]})
+        try:
+            validate_password(password)
+        except ValidationError as exc:
+            raise DRFValidationError({"password": exc.messages})
+
+        tecnico = perfil_data.get("tecnico")
+        self._verificar_tecnico(tecnico, empresa)
+
+        user = User.objects.create_user(serializer.validated_data["username"], password=password)
+        perfil, _ = PerfilUsuario.objects.update_or_create(
+            usuario=user,
+            defaults={
+                "empresa": empresa,
+                "rol": perfil_data.get("rol", "SOLO_LECTURA"),
+                "tecnico": tecnico,
+                "debe_cambiar_password": True,
+            },
+        )
+        user.perfil = perfil
+        serializer.instance = user
+
+    def perform_update(self, serializer):
+        empresa = self.request.user.perfil.empresa
+        password = serializer.validated_data.pop("password", None)
+        perfil_data = serializer.validated_data.pop("perfil", {})
+
+        if password:
+            try:
+                validate_password(password)
+            except ValidationError as exc:
+                raise DRFValidationError({"password": exc.messages})
+
+        user = serializer.save()
+
+        actualizaciones = {}
+        if "rol" in perfil_data:
+            actualizaciones["rol"] = perfil_data["rol"]
+        if "tecnico" in perfil_data:
+            tecnico = perfil_data["tecnico"]
+            self._verificar_tecnico(tecnico, empresa)
+            actualizaciones["tecnico"] = tecnico
+        if password:
+            actualizaciones["debe_cambiar_password"] = True
+        if actualizaciones:
+            PerfilUsuario.objects.filter(usuario=user).update(**actualizaciones)
+
+        if password:
+            user.set_password(password)
+            user.save(update_fields=["password"])
+
+    def perform_destroy(self, instance):
+        if instance == self.request.user:
+            raise PermissionDenied("No puedes desactivar tu propia cuenta.")
+        instance.is_active = False
+        instance.save(update_fields=["is_active"])

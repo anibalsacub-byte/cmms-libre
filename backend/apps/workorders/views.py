@@ -4,6 +4,7 @@ from django.http import StreamingHttpResponse
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from apps.accounts.permissions import TecnicoEscribeAdministracionGestiona
 from apps.companies.mixins import EmpresaScopedMixin
@@ -154,12 +155,30 @@ class AsignacionTecnicoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
 
 
 class MaterialUtilizadoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
+    """Los materiales se pueden agregar y quitar libremente (como los
+    componentes de una orden SAP) mientras la OT siga abierta; una vez
+    cerrada o cancelada, quedan fijos para no alterar el costo histórico."""
+
     queryset = MaterialUtilizado.objects.all().select_related("material")
     serializer_class = MaterialUtilizadoSerializer
     permission_classes = [TecnicoEscribeAdministracionGestiona]
     filterset_fields = ["orden_trabajo", "material", "fuente"]
     empresa_lookup = "orden_trabajo__empresa"
     parent_field = "orden_trabajo"
+
+    def _verificar_ot_abierta(self, orden_trabajo):
+        if orden_trabajo.estado in ("CERRADA", "CANCELADA"):
+            raise PermissionDenied("La OT ya está cerrada; no se pueden modificar sus materiales.")
+
+    def perform_create(self, serializer):
+        orden = serializer.validated_data.get("orden_trabajo")
+        if orden is not None:
+            self._verificar_ot_abierta(orden)
+        super().perform_create(serializer)
+
+    def perform_destroy(self, instance):
+        self._verificar_ot_abierta(instance.orden_trabajo)
+        instance.delete()
 
 
 class IntentoReparacionViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):

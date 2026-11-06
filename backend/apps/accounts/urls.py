@@ -1,11 +1,16 @@
 from django.urls import path
+from rest_framework.routers import DefaultRouter
 from .views import (
     MeView,
     CambiarPasswordView,
     CargarDemoView,
     ReiniciarInstalacionView,
     RegistrarEmpresaView,
+    UsuarioViewSet,
 )
+
+router = DefaultRouter()
+router.register("usuarios", UsuarioViewSet, basename="usuario")
 
 urlpatterns = [
     path("me/", MeView.as_view(), name="me"),
@@ -17,4 +22,4 @@ urlpatterns = [
         name="reiniciar-instalacion",
     ),
     path("registrar-empresa/", RegistrarEmpresaView.as_view(), name="registrar-empresa"),
-]
+] + router.urls

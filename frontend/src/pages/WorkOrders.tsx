@@ -33,6 +33,7 @@ export default function WorkOrders() {
 
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([])
   const [materiales, setMateriales] = useState<Material[]>([])
+  const otAbierta = seleccionada ? !['CERRADA', 'CANCELADA'].includes(seleccionada.estado) : false
 
   const [formHoras, setFormHoras] = useState({ tecnico: '', fecha: '', horas_reales: '' })
   const [formMaterial, setFormMaterial] = useState({ material: '', cantidad: '', fuente: 'STOCK_LOCAL' })
@@ -132,6 +133,11 @@ export default function WorkOrders() {
       fuente: formMaterial.fuente,
     })
     setFormMaterial({ material: '', cantidad: '', fuente: 'STOCK_LOCAL' })
+    recargarSeleccionada()
+  }
+
+  async function quitarMaterial(materialUtilizadoId: number) {
+    await api.delete(`/workorders/materiales-utilizados/${materialUtilizadoId}/`)
     recargarSeleccionada()
   }
 
@@ -339,15 +345,25 @@ export default function WorkOrders() {
                 <h3 className="text-xs font-semibold text-slate-500 uppercase mb-1">Materiales</h3>
                 <ul className="text-sm space-y-1">
                   {seleccionada.materiales.map((m) => (
-                    <li key={m.id}>
-                      {m.material_codigo} x{m.cantidad} - S/ {m.subtotal.toFixed(2)}
+                    <li key={m.id} className="flex items-center justify-between gap-2">
+                      <span>
+                        {m.material_codigo} x{m.cantidad} - S/ {m.subtotal.toFixed(2)}
+                      </span>
+                      {puedeOperar && otAbierta && (
+                        <button
+                          onClick={() => quitarMaterial(m.id)}
+                          className="text-xs font-medium text-red-600 hover:underline"
+                        >
+                          Quitar
+                        </button>
+                      )}
                     </li>
                   ))}
                   {seleccionada.materiales.length === 0 && (
                     <li className="text-slate-400">Sin materiales registrados.</li>
                   )}
                 </ul>
-                {puedeOperar && (
+                {puedeOperar && otAbierta && (
                   <form onSubmit={registrarMaterial} className="mt-2 flex flex-wrap gap-1 items-end">
                     <select
                       required

@@ -29,8 +29,8 @@ class MaterialViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
     queryset = Material.objects.all().prefetch_related("stocks")
     serializer_class = MaterialSerializer
     permission_classes = [SoloAdministracionEscribe]
-    filterset_fields = ["grupo", "estado"]
-    search_fields = ["codigo", "descripcion"]
+    filterset_fields = ["grupo", "estado", "clase"]
+    search_fields = ["codigo", "descripcion", "clase"]
 
 
 class StockAlmacenViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):

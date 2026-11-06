@@ -120,11 +120,30 @@ export type Material = {
   descripcion: string
   grupo: number
   grupo_nombre: string
+  clase: string
   unidad_medida: string
   costo_unitario: string
   estado: string
   tiempo_entrega_dias: number
   stock_total: number
+}
+
+export type Usuario = {
+  id: number
+  username: string
+  rol: 'ADMINISTRADOR' | 'PLANIFICADOR' | 'TECNICO' | 'SOLICITANTE' | 'SOLO_LECTURA'
+  rol_display: string
+  tecnico: number | null
+  tecnico_nombre: string | null
+  debe_cambiar_password: boolean
+  is_active: boolean
+}
+
+export type Almacen = {
+  id: number
+  codigo: string
+  nombre: string
+  ubicacion: string
 }
 
 export type StockAlmacen = {
