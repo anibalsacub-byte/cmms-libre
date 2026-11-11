@@ -13,6 +13,7 @@ export type Activo = {
   clase_nombre: string
   ubicacion_tecnica: number
   ubicacion_tecnica_nombre: string
+  ubicacion_tecnica_codigo: string
   sistema: string
   criticidad: 'ALTA' | 'MEDIA' | 'BAJA'
   estado: string

@@ -172,7 +172,12 @@ export default function Assets() {
             <h2 className="text-sm font-semibold text-slate-700">Ubicaciones técnicas</h2>
             <ul className="text-sm text-slate-600 space-y-1">
               {ubicaciones.map((u) => (
-                <li key={u.id}>{u.ruta || `${u.codigo} - ${u.nombre}`}</li>
+                <li key={u.id}>
+                  <span className="font-mono text-xs bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
+                    {u.codigo}
+                  </span>{' '}
+                  {u.nombre}
+                </li>
               ))}
               {ubicaciones.length === 0 && <li className="text-slate-400">Sin ubicaciones todavía.</li>}
             </ul>
@@ -200,7 +205,7 @@ export default function Assets() {
                   <option value="">Sin padre (nivel raíz, ej. planta)</option>
                   {ubicaciones.map((u) => (
                     <option key={u.id} value={u.id}>
-                      {u.ruta || u.nombre}
+                      {u.codigo} - {u.nombre}
                     </option>
                   ))}
                 </select>
@@ -267,7 +272,7 @@ export default function Assets() {
                 <option value="">Selecciona...</option>
                 {ubicaciones.map((u) => (
                   <option key={u.id} value={u.id}>
-                    {u.ruta || u.nombre}
+                    {u.codigo} - {u.nombre}
                   </option>
                 ))}
               </select>
@@ -357,7 +362,12 @@ export default function Assets() {
                 <td className="px-4 py-2 font-medium text-slate-700">{a.codigo}</td>
                 <td className="px-4 py-2">{a.nombre}</td>
                 <td className="px-4 py-2 text-slate-500">{a.clase_nombre}</td>
-                <td className="px-4 py-2 text-slate-500">{a.ubicacion_tecnica_nombre}</td>
+                <td className="px-4 py-2 text-slate-500">
+                  <span className="font-mono text-xs bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
+                    {a.ubicacion_tecnica_codigo}
+                  </span>{' '}
+                  {a.ubicacion_tecnica_nombre}
+                </td>
                 <td className="px-4 py-2">
                   <Badge value={a.criticidad} />
                 </td>

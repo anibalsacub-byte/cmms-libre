@@ -29,6 +29,9 @@ class ActivoSerializer(serializers.ModelSerializer):
     ubicacion_tecnica_nombre = serializers.CharField(
         source="ubicacion_tecnica.nombre", read_only=True
     )
+    ubicacion_tecnica_codigo = serializers.CharField(
+        source="ubicacion_tecnica.codigo", read_only=True
+    )
     ficha_tecnica = FichaTecnicaCampoSerializer(many=True, read_only=True)
 
     class Meta:
