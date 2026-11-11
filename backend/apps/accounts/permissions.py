@@ -23,6 +23,22 @@ class SoloAdministracionEscribe(BasePermission):
         return _rol(request) in ("ADMINISTRADOR", "PLANIFICADOR")
 
 
+class SoloAdministracionEscribeAdminElimina(BasePermission):
+    """Como SoloAdministracionEscribe (planificador/administrador editan),
+    pero borrar es exclusivo del Administrador: pensado para activos y
+    ubicaciones técnicas, donde un borrado accidental es más costoso (una
+    ubicación arrastra a sus hijas al eliminarse)."""
+
+    def has_permission(self, request, view):
+        if not _autenticado(request):
+            return False
+        if request.method in SAFE_METHODS:
+            return True
+        if request.method == "DELETE":
+            return _rol(request) == "ADMINISTRADOR"
+        return _rol(request) in ("ADMINISTRADOR", "PLANIFICADOR")
+
+
 class SoloSuperusuarioEscribe(BasePermission):
     """Lectura para cualquier usuario autenticado; escritura solo para el
     superusuario de la plataforma. Pensado para catálogos GLOBALES

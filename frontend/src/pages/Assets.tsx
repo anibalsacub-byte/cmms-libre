@@ -16,8 +16,16 @@ const ACTIVO_VACIO = {
   numero_serie: '',
 }
 
+function detalleError(err: unknown, fallback: string) {
+  if (typeof err === 'object' && err !== null && 'response' in err) {
+    const detail = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+    if (typeof detail === 'string') return detail
+  }
+  return fallback
+}
+
 export default function Assets() {
-  const { puedeGestionar } = useAuth()
+  const { puedeGestionar, esAdministrador } = useAuth()
   const [activos, setActivos] = useState<Activo[]>([])
   const [clases, setClases] = useState<ClaseActivo[]>([])
   const [ubicaciones, setUbicaciones] = useState<UbicacionTecnica[]>([])
@@ -67,6 +75,34 @@ export default function Assets() {
     })
     setNuevaUbicacion({ codigo: '', nombre: '', padre: '' })
     cargarUbicaciones()
+  }
+
+  async function eliminarUbicacion(u: UbicacionTecnica) {
+    const tieneHijos = ubicaciones.some((otra) => otra.padre === u.id)
+    const advertencia = tieneHijos
+      ? ` Esta ubicación tiene ubicaciones hijas, que también se eliminarán.`
+      : ''
+    if (!window.confirm(`¿Está seguro que desea eliminar "${u.codigo} - ${u.nombre}"?${advertencia}`)) {
+      return
+    }
+    try {
+      await api.delete(`/assets/ubicaciones-tecnicas/${u.id}/`)
+      cargarUbicaciones()
+    } catch (err) {
+      window.alert(detalleError(err, 'No se pudo eliminar la ubicación.'))
+    }
+  }
+
+  async function eliminarActivo(a: Activo) {
+    if (!window.confirm(`¿Está seguro que desea eliminar "${a.codigo} - ${a.nombre}"?`)) {
+      return
+    }
+    try {
+      await api.delete(`/assets/activos/${a.id}/`)
+      cargarActivos()
+    } catch (err) {
+      window.alert(detalleError(err, 'No se pudo eliminar el activo.'))
+    }
   }
 
   function nuevoActivo() {
@@ -172,11 +208,21 @@ export default function Assets() {
             <h2 className="text-sm font-semibold text-slate-700">Ubicaciones técnicas</h2>
             <ul className="text-sm text-slate-600 space-y-1">
               {ubicaciones.map((u) => (
-                <li key={u.id}>
-                  <span className="font-mono text-xs bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
-                    {u.codigo}
-                  </span>{' '}
-                  {u.nombre}
+                <li key={u.id} className="flex items-center justify-between gap-2">
+                  <span>
+                    <span className="font-mono text-xs bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
+                      {u.codigo}
+                    </span>{' '}
+                    {u.nombre}
+                  </span>
+                  {esAdministrador && (
+                    <button
+                      onClick={() => eliminarUbicacion(u)}
+                      className="text-xs font-medium text-red-600 hover:underline"
+                    >
+                      Eliminar
+                    </button>
+                  )}
                 </li>
               ))}
               {ubicaciones.length === 0 && <li className="text-slate-400">Sin ubicaciones todavía.</li>}
@@ -373,13 +419,21 @@ export default function Assets() {
                 </td>
                 <td className="px-4 py-2 text-slate-500">{a.estado}</td>
                 <td className="px-4 py-2 text-slate-500">{a.horas_operacion_acumuladas}</td>
-                <td className="px-4 py-2">
+                <td className="px-4 py-2 space-x-3 whitespace-nowrap">
                   {puedeGestionar && (
                     <button
                       onClick={() => editarActivo(a)}
                       className="text-xs font-medium text-slate-600 hover:underline"
                     >
                       Editar
+                    </button>
+                  )}
+                  {esAdministrador && (
+                    <button
+                      onClick={() => eliminarActivo(a)}
+                      className="text-xs font-medium text-red-600 hover:underline"
+                    >
+                      Eliminar
                     </button>
                   )}
                 </td>
