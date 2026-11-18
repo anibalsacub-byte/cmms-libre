@@ -72,6 +72,10 @@ class StockAlmacen(models.Model):
     ubicacion_en_almacen = models.CharField(max_length=50, blank=True)
     cantidad = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     stock_minimo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    stock_maximo = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text="Opcional: referencia para no sobre-stockear. Vacío = sin límite.",
+    )
 
     class Meta:
         verbose_name = "Stock por almacén"
@@ -84,6 +88,10 @@ class StockAlmacen(models.Model):
     @property
     def bajo_minimo(self):
         return self.cantidad < self.stock_minimo
+
+    @property
+    def sobre_maximo(self):
+        return self.stock_maximo is not None and self.cantidad > self.stock_maximo
 
 
 class MovimientoStock(models.Model):

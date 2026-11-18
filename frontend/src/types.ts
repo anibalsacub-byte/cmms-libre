@@ -157,7 +157,35 @@ export type StockAlmacen = {
   ubicacion_en_almacen: string
   cantidad: string
   stock_minimo: string
+  stock_maximo: string | null
   bajo_minimo: boolean
+  sobre_maximo: boolean
+}
+
+export type MovimientoStock = {
+  id: number
+  material: number
+  material_codigo: string
+  almacen: number
+  almacen_codigo: string
+  tipo: 'ENTRADA' | 'SALIDA' | 'AJUSTE'
+  cantidad: string
+  referencia: string
+  fecha: string
+}
+
+export type TrasladoAlmacen = {
+  id: number
+  material: number
+  material_codigo: string
+  almacen_origen: number
+  almacen_origen_codigo: string
+  almacen_destino: number
+  almacen_destino_codigo: string
+  cantidad: string
+  estado: 'SOLICITADO' | 'EN_TRANSITO' | 'RECIBIDO' | 'CANCELADO'
+  fecha_solicitud: string
+  fecha_recepcion: string | null
 }
 
 export type EquipoMaterial = {
