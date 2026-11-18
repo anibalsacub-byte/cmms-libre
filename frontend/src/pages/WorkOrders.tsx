@@ -32,6 +32,14 @@ const TABS = [
 ] as const
 type TabKey = (typeof TABS)[number]['key']
 
+function detalleError(err: unknown, fallback: string) {
+  if (typeof err === 'object' && err !== null && 'response' in err) {
+    const detail = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+    if (typeof detail === 'string') return detail
+  }
+  return fallback
+}
+
 export default function WorkOrders() {
   const { puedeOperar } = useAuth()
   const [ordenes, setOrdenes] = useState<OrdenTrabajo[]>([])
@@ -121,15 +129,19 @@ export default function WorkOrders() {
   async function registrarHoras(e: React.FormEvent) {
     e.preventDefault()
     if (!seleccionada || !formHoras.tecnico || !formHoras.fecha || !formHoras.horas_reales) return
-    await api.post('/workorders/asignaciones/', {
-      orden_trabajo: seleccionada.id,
-      tecnico: Number(formHoras.tecnico),
-      fecha: formHoras.fecha,
-      horas_planificadas: formHoras.horas_reales,
-      horas_reales: formHoras.horas_reales,
-    })
-    setFormHoras({ tecnico: '', fecha: '', horas_reales: '' })
-    recargarSeleccionada()
+    try {
+      await api.post('/workorders/asignaciones/', {
+        orden_trabajo: seleccionada.id,
+        tecnico: Number(formHoras.tecnico),
+        fecha: formHoras.fecha,
+        horas_planificadas: formHoras.horas_reales,
+        horas_reales: formHoras.horas_reales,
+      })
+      setFormHoras({ tecnico: '', fecha: '', horas_reales: '' })
+      recargarSeleccionada()
+    } catch (err) {
+      window.alert(detalleError(err, 'No se pudieron registrar las horas.'))
+    }
   }
 
   async function quitarHoras(asignacionId: number) {
@@ -142,15 +154,19 @@ export default function WorkOrders() {
     if (!seleccionada || !formMaterial.material || !formMaterial.cantidad) return
     const mat = materiales.find((m) => m.id === Number(formMaterial.material))
     if (!mat) return
-    await api.post('/workorders/materiales-utilizados/', {
-      orden_trabajo: seleccionada.id,
-      material: mat.id,
-      cantidad: formMaterial.cantidad,
-      costo_unitario: mat.costo_unitario,
-      fuente: formMaterial.fuente,
-    })
-    setFormMaterial({ material: '', cantidad: '', fuente: 'STOCK_LOCAL' })
-    recargarSeleccionada()
+    try {
+      await api.post('/workorders/materiales-utilizados/', {
+        orden_trabajo: seleccionada.id,
+        material: mat.id,
+        cantidad: formMaterial.cantidad,
+        costo_unitario: mat.costo_unitario,
+        fuente: formMaterial.fuente,
+      })
+      setFormMaterial({ material: '', cantidad: '', fuente: 'STOCK_LOCAL' })
+      recargarSeleccionada()
+    } catch (err) {
+      window.alert(detalleError(err, 'No se pudo registrar el material.'))
+    }
   }
 
   async function quitarMaterial(materialUtilizadoId: number) {
@@ -462,7 +478,13 @@ export default function WorkOrders() {
                               <td className="border border-slate-300 px-2 py-1 text-center">
                                 <button
                                   onClick={registrarMaterial}
-                                  className="text-emerald-700 font-medium hover:underline"
+                                  disabled={!formMaterial.material || !formMaterial.cantidad}
+                                  title={
+                                    !formMaterial.material || !formMaterial.cantidad
+                                      ? 'Selecciona un material y escribe la cantidad'
+                                      : undefined
+                                  }
+                                  className="text-emerald-700 font-medium hover:underline disabled:text-slate-300 disabled:no-underline disabled:cursor-not-allowed"
                                 >
                                   Agregar
                                 </button>
@@ -568,7 +590,13 @@ export default function WorkOrders() {
                               <td className="border border-slate-300 px-2 py-1 text-center">
                                 <button
                                   onClick={registrarHoras}
-                                  className="text-emerald-700 font-medium hover:underline"
+                                  disabled={!formHoras.tecnico || !formHoras.fecha || !formHoras.horas_reales}
+                                  title={
+                                    !formHoras.tecnico || !formHoras.fecha || !formHoras.horas_reales
+                                      ? 'Selecciona un técnico, fecha y horas'
+                                      : undefined
+                                  }
+                                  className="text-emerald-700 font-medium hover:underline disabled:text-slate-300 disabled:no-underline disabled:cursor-not-allowed"
                                 >
                                   Agregar
                                 </button>
@@ -636,6 +664,7 @@ export default function WorkOrders() {
                     {seleccionada.bitacora.map((b) => (
                       <li key={b.id}>
                         {new Date(b.fecha).toLocaleString()} - {b.evento}
+                        {b.detalle && <span className="text-slate-400"> ({b.detalle})</span>}
                       </li>
                     ))}
                     {seleccionada.bitacora.length === 0 && (
