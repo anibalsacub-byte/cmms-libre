@@ -108,6 +108,7 @@ export type Tecnico = {
   nombre: string
   especialidad: number
   especialidad_nombre: string
+  habilidades: number[]
   habilidades_nombres: string[]
   tarifa_hora: string
   productividad_pct: string
