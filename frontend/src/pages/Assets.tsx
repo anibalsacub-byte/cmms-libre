@@ -183,7 +183,7 @@ export default function Assets() {
                   {c.codigo} - {c.nombre}
                 </li>
               ))}
-              {clases.length === 0 && <li className="text-slate-400">Sin clases todavía.</li>}
+              {clases.length === 0 && <li className="text-slate-500">Sin clases todavía.</li>}
             </ul>
             <form onSubmit={crearClase} className="flex gap-2">
               <input
@@ -225,7 +225,7 @@ export default function Assets() {
                   )}
                 </li>
               ))}
-              {ubicaciones.length === 0 && <li className="text-slate-400">Sin ubicaciones todavía.</li>}
+              {ubicaciones.length === 0 && <li className="text-slate-500">Sin ubicaciones todavía.</li>}
             </ul>
             <form onSubmit={crearUbicacion} className="space-y-2">
               <div className="flex gap-2">

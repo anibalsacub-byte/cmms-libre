@@ -8,7 +8,7 @@ function KpiCard({ label, value, hint }: { label: string; value: string; hint?: 
     <div className="bg-white rounded-lg shadow-sm p-4 border border-slate-200">
       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</p>
       <p className="text-2xl font-semibold text-slate-800 mt-1">{value}</p>
-      {hint && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-slate-500 mt-1">{hint}</p>}
     </div>
   )
 }
@@ -109,7 +109,7 @@ export default function Dashboard() {
               <p className="text-xl font-semibold text-slate-800">{oee.calidad}%</p>
             </div>
           </div>
-          <p className="text-xs text-slate-400 mt-4 text-center">
+          <p className="text-xs text-slate-500 mt-4 text-center">
             Basado en {oee.registros} registros de producción.
           </p>
         </div>

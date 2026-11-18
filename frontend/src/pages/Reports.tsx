@@ -8,7 +8,7 @@ function ParetoChart({ title, data }: { title: string; data: { nombre: string; t
     <div className="bg-white rounded-lg shadow-sm p-4 border border-slate-200">
       <h2 className="text-sm font-semibold text-slate-700 mb-3">{title}</h2>
       {data.length === 0 ? (
-        <p className="text-sm text-slate-400">Sin datos en el período.</p>
+        <p className="text-sm text-slate-500">Sin datos en el período.</p>
       ) : (
         <ResponsiveContainer width="100%" height={260}>
           <BarChart data={data} layout="vertical" margin={{ left: 24 }}>

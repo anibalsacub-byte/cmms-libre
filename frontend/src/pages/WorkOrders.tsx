@@ -216,7 +216,7 @@ export default function WorkOrders() {
                 >
                   <td className="px-3 py-2 font-medium text-slate-700">
                     {o.numero}
-                    <div className="text-xs text-slate-400 font-normal">{o.activo_codigo}</div>
+                    <div className="text-xs text-slate-500 font-normal">{o.activo_codigo}</div>
                   </td>
                   <td className="px-3 py-2 text-slate-500">{o.estado}</td>
                   <td className="px-3 py-2 text-slate-500">S/ {o.costo_total}</td>
@@ -228,7 +228,7 @@ export default function WorkOrders() {
 
         <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-slate-200">
           {!seleccionada ? (
-            <p className="text-sm text-slate-400 p-4">Selecciona una OT para ver su detalle.</p>
+            <p className="text-sm text-slate-500 p-4">Selecciona una OT para ver su detalle.</p>
           ) : (
             <div>
               {/* Cabecera */}
@@ -242,7 +242,7 @@ export default function WorkOrders() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge value={seleccionada.prioridad} />
-                    <span className="text-xs text-slate-400">{seleccionada.tipo}</span>
+                    <span className="text-xs text-slate-500">{seleccionada.tipo}</span>
                   </div>
                 </div>
 
@@ -252,7 +252,7 @@ export default function WorkOrders() {
                     value={seleccionada.estado}
                     disabled={cambiando || !puedeOperar}
                     onChange={(e) => cambiarEstado(e.target.value)}
-                    className="w-full rounded-md border border-slate-300 text-sm px-2 py-1.5 disabled:bg-slate-100 disabled:text-slate-400"
+                    className="w-full rounded-md border border-slate-300 text-sm px-2 py-1.5 disabled:bg-slate-100 disabled:text-slate-500"
                   >
                     {ESTADOS.map((e) => (
                       <option key={e} value={e}>
@@ -344,7 +344,7 @@ export default function WorkOrders() {
                           </li>
                         ))}
                         {seleccionada.tareas.length === 0 && (
-                          <li className="text-slate-400">Sin tareas registradas.</li>
+                          <li className="text-slate-500">Sin tareas registradas.</li>
                         )}
                       </ul>
                     </div>
@@ -384,7 +384,7 @@ export default function WorkOrders() {
                         <tbody>
                           {seleccionada.materiales.map((m, i) => (
                             <tr key={m.id} className="hover:bg-slate-50">
-                              <td className="border border-slate-300 px-2 py-1 text-slate-400">
+                              <td className="border border-slate-300 px-2 py-1 text-slate-500">
                                 {String((i + 1) * 10).padStart(4, '0')}
                               </td>
                               <td className="border border-slate-300 px-2 py-1 font-medium text-slate-700">
@@ -420,7 +420,7 @@ export default function WorkOrders() {
                           ))}
                           {puedeOperar && otAbierta && (
                             <tr className="bg-slate-50">
-                              <td className="border border-slate-300 px-2 py-1 text-slate-400">
+                              <td className="border border-slate-300 px-2 py-1 text-slate-500">
                                 {String((seleccionada.materiales.length + 1) * 10).padStart(4, '0')}
                               </td>
                               <td className="border border-slate-300 px-1 py-1" colSpan={2}>
@@ -452,11 +452,11 @@ export default function WorkOrders() {
                                   className="w-full rounded border border-slate-300 text-xs px-1 py-1 text-right"
                                 />
                               </td>
-                              <td className="border border-slate-300 px-2 py-1 text-slate-400">
+                              <td className="border border-slate-300 px-2 py-1 text-slate-500">
                                 {materiales.find((m) => m.id === Number(formMaterial.material))
                                   ?.unidad_medida || '—'}
                               </td>
-                              <td className="border border-slate-300 px-2 py-1 text-right text-slate-400">
+                              <td className="border border-slate-300 px-2 py-1 text-right text-slate-500">
                                 {materiales.find((m) => m.id === Number(formMaterial.material))
                                   ?.costo_unitario ?? '—'}
                               </td>
@@ -493,7 +493,7 @@ export default function WorkOrders() {
                           )}
                           {seleccionada.materiales.length === 0 && !(puedeOperar && otAbierta) && (
                             <tr>
-                              <td colSpan={9} className="border border-slate-300 px-2 py-3 text-center text-slate-400">
+                              <td colSpan={9} className="border border-slate-300 px-2 py-3 text-center text-slate-500">
                                 Sin componentes registrados.
                               </td>
                             </tr>
@@ -525,7 +525,7 @@ export default function WorkOrders() {
                         <tbody>
                           {seleccionada.asignaciones.map((a, i) => (
                             <tr key={a.id} className="hover:bg-slate-50">
-                              <td className="border border-slate-300 px-2 py-1 text-slate-400">
+                              <td className="border border-slate-300 px-2 py-1 text-slate-500">
                                 {String((i + 1) * 10).padStart(4, '0')}
                               </td>
                               <td className="border border-slate-300 px-2 py-1 font-medium text-slate-700">
@@ -549,7 +549,7 @@ export default function WorkOrders() {
                           ))}
                           {puedeOperar && otAbierta && (
                             <tr className="bg-slate-50">
-                              <td className="border border-slate-300 px-2 py-1 text-slate-400">
+                              <td className="border border-slate-300 px-2 py-1 text-slate-500">
                                 {String((seleccionada.asignaciones.length + 1) * 10).padStart(4, '0')}
                               </td>
                               <td className="border border-slate-300 px-1 py-1">
@@ -605,7 +605,7 @@ export default function WorkOrders() {
                           )}
                           {seleccionada.asignaciones.length === 0 && !(puedeOperar && otAbierta) && (
                             <tr>
-                              <td colSpan={5} className="border border-slate-300 px-2 py-3 text-center text-slate-400">
+                              <td colSpan={5} className="border border-slate-300 px-2 py-3 text-center text-slate-500">
                                 Sin técnicos asignados.
                               </td>
                             </tr>
@@ -640,11 +640,11 @@ export default function WorkOrders() {
                           >
                             {a.archivo.split('/').pop()}
                           </a>{' '}
-                          <span className="text-xs text-slate-400">({a.subido_por})</span>
+                          <span className="text-xs text-slate-500">({a.subido_por})</span>
                         </li>
                       ))}
                       {adjuntos.length === 0 && (
-                        <li className="text-slate-400">Sin adjuntos todavía.</li>
+                        <li className="text-slate-500">Sin adjuntos todavía.</li>
                       )}
                     </ul>
                     {puedeOperar && (
@@ -664,11 +664,11 @@ export default function WorkOrders() {
                     {seleccionada.bitacora.map((b) => (
                       <li key={b.id}>
                         {new Date(b.fecha).toLocaleString()} - {b.evento}
-                        {b.detalle && <span className="text-slate-400"> ({b.detalle})</span>}
+                        {b.detalle && <span className="text-slate-500"> ({b.detalle})</span>}
                       </li>
                     ))}
                     {seleccionada.bitacora.length === 0 && (
-                      <li className="text-slate-400">Sin eventos registrados.</li>
+                      <li className="text-slate-500">Sin eventos registrados.</li>
                     )}
                   </ul>
                 )}

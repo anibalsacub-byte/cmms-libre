@@ -85,7 +85,7 @@ export default function PreventivePlans() {
                 </td>
                 <td className="px-4 py-2">
                   {!p.activo_flag ? (
-                    <span className="text-xs text-slate-400">Inactivo</span>
+                    <span className="text-xs text-slate-500">Inactivo</span>
                   ) : p.vencido ? (
                     <span className="text-xs font-medium text-amber-700">Vencido</span>
                   ) : (
@@ -96,7 +96,7 @@ export default function PreventivePlans() {
             ))}
             {planes.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
                   Sin planes preventivos todavía.
                 </td>
               </tr>

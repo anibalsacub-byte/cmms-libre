@@ -170,7 +170,7 @@ export default function Notices() {
             ))}
             {avisos.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
                   Sin avisos todavía.
                 </td>
               </tr>

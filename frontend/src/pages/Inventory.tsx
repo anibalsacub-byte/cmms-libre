@@ -174,7 +174,7 @@ export default function Inventory() {
           >
             Limpiar filtros
           </button>
-          <span className="text-xs text-slate-400">{filas.length} resultado(s)</span>
+          <span className="text-xs text-slate-500">{filas.length} resultado(s)</span>
         </div>
       </div>
 
@@ -223,7 +223,7 @@ export default function Inventory() {
             ))}
             {filas.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={11} className="px-4 py-6 text-center text-slate-500">
                   Sin resultados para estos filtros.
                 </td>
               </tr>

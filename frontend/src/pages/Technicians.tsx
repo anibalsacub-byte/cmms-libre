@@ -38,7 +38,7 @@ export default function Technicians() {
                   {t.disponible ? (
                     <span className="text-emerald-600 text-xs font-medium">Sí</span>
                   ) : (
-                    <span className="text-slate-400 text-xs font-medium">No</span>
+                    <span className="text-slate-500 text-xs font-medium">No</span>
                   )}
                 </td>
               </tr>

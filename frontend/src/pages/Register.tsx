@@ -83,7 +83,7 @@ export default function Register() {
         >
           {loading ? 'Creando...' : 'Crear empresa e ingresar'}
         </button>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slate-500">
           ¿Ya tienes una cuenta?{' '}
           <Link to="/login" className="text-slate-600 underline">
             Inicia sesión

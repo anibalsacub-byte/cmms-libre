@@ -60,29 +60,29 @@ export default function FailureCatalog() {
             </div>
           ))}
           {sintomas.length === 0 && (
-            <p className="px-4 py-3 text-sm text-slate-400">Sin registros.</p>
+            <p className="px-4 py-3 text-sm text-slate-500">Sin registros.</p>
           )}
         </Section>
 
         <Section title="Modos de falla">
           {modos.map((m) => (
             <div key={m.id} className="px-4 py-2 text-sm">
-              <span className="font-mono text-xs text-slate-400 mr-2">{m.codigo}</span>{' '}
+              <span className="font-mono text-xs text-slate-500 mr-2">{m.codigo}</span>{' '}
               {m.nombre}
             </div>
           ))}
-          {modos.length === 0 && <p className="px-4 py-3 text-sm text-slate-400">Sin registros.</p>}
+          {modos.length === 0 && <p className="px-4 py-3 text-sm text-slate-500">Sin registros.</p>}
         </Section>
 
         <Section title="Mecanismos de falla">
           {mecanismos.map((m) => (
             <div key={m.id} className="px-4 py-2 text-sm">
-              <span className="font-mono text-xs text-slate-400 mr-2">{m.codigo}</span>{' '}
+              <span className="font-mono text-xs text-slate-500 mr-2">{m.codigo}</span>{' '}
               {m.nombre}
             </div>
           ))}
           {mecanismos.length === 0 && (
-            <p className="px-4 py-3 text-sm text-slate-400">Sin registros.</p>
+            <p className="px-4 py-3 text-sm text-slate-500">Sin registros.</p>
           )}
         </Section>
 
@@ -90,7 +90,7 @@ export default function FailureCatalog() {
           {causas.map((c) => (
             <div key={c.id} className="px-4 py-2 text-sm flex items-center justify-between">
               <span>
-                <span className="font-mono text-xs text-slate-400 mr-2">{c.codigo}</span>{' '}
+                <span className="font-mono text-xs text-slate-500 mr-2">{c.codigo}</span>{' '}
                 {c.nombre}
               </span>
               <span className="text-xs text-slate-500 bg-slate-100 rounded-full px-2 py-0.5">
@@ -98,7 +98,7 @@ export default function FailureCatalog() {
               </span>
             </div>
           ))}
-          {causas.length === 0 && <p className="px-4 py-3 text-sm text-slate-400">Sin registros.</p>}
+          {causas.length === 0 && <p className="px-4 py-3 text-sm text-slate-500">Sin registros.</p>}
         </Section>
       </div>
     </div>
