@@ -69,5 +69,36 @@ class Tecnico(models.Model):
         ).aggregate(models.Sum("horas_planificadas"))["horas_planificadas__sum"]
         return total or 0
 
+    def tiene_ausencia(self, fecha):
+        return self.ausencias.filter(fecha_inicio__lte=fecha, fecha_fin__gte=fecha).exists()
+
     def disponibilidad_restante_horas(self, fecha):
+        if self.tiene_ausencia(fecha):
+            return 0.0
         return float(self.capacidad_diaria_horas) - float(self.carga_diaria_horas(fecha))
+
+
+class Ausencia(models.Model):
+    """Vacaciones, licencias o incapacidades: mientras dura, la capacidad
+    disponible del técnico para ese día es 0 (P1-3)."""
+
+    TIPO_CHOICES = [
+        ("VACACIONES", "Vacaciones"),
+        ("LICENCIA", "Licencia o permiso"),
+        ("INCAPACIDAD", "Incapacidad médica"),
+        ("OTRO", "Otro"),
+    ]
+
+    tecnico = models.ForeignKey(Tecnico, on_delete=models.CASCADE, related_name="ausencias")
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    tipo = models.CharField(max_length=15, choices=TIPO_CHOICES, default="OTRO")
+    motivo = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        verbose_name = "Ausencia de técnico"
+        verbose_name_plural = "Ausencias de técnico"
+        ordering = ["fecha_inicio"]
+
+    def __str__(self):
+        return f"{self.tecnico.codigo}: {self.fecha_inicio} - {self.fecha_fin}"

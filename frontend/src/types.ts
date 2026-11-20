@@ -126,6 +126,51 @@ export type OrdenTrabajoDetalle = OrdenTrabajo & {
   bitacora: { id: number; fecha: string; usuario: string; evento: string; detalle: string }[]
 }
 
+export type Ausencia = {
+  id: number
+  tecnico: number
+  tecnico_codigo: string
+  tecnico_nombre: string
+  fecha_inicio: string
+  fecha_fin: string
+  tipo: 'VACACIONES' | 'LICENCIA' | 'INCAPACIDAD' | 'OTRO'
+  motivo: string
+}
+
+export type PlanificacionAsignacion = {
+  id: number
+  orden_trabajo: number
+  orden_trabajo_numero: string
+  activo_codigo: string
+  descripcion: string
+  horas_planificadas: number
+  horas_reales: number | null
+}
+
+export type PlanificacionDia = {
+  ausente: boolean
+  horas_planificadas: number
+  horas_disponibles: number
+  sobrecarga: boolean
+  asignaciones: PlanificacionAsignacion[]
+}
+
+export type PlanificacionTecnico = {
+  id: number
+  codigo: string
+  nombre: string
+  capacidad_diaria_horas: number
+  dias: Record<string, PlanificacionDia>
+}
+
+export type PlanificacionSemana = {
+  dias: string[]
+  tecnicos: PlanificacionTecnico[]
+  horas_pendientes: number
+  capacidad_semanal_total_horas: number
+  backlog_semanas: number | null
+}
+
 export type Tecnico = {
   id: number
   codigo: string

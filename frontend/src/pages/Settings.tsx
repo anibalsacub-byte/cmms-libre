@@ -288,6 +288,101 @@ function ConfiguracionFallas() {
   )
 }
 
+function RespaldoEmpresa() {
+  const [exportando, setExportando] = useState(false)
+  const [errorExport, setErrorExport] = useState<string | null>(null)
+  const [yaExporto, setYaExporto] = useState(false)
+
+  const [archivo, setArchivo] = useState<File | null>(null)
+  const [importando, setImportando] = useState(false)
+  const [mensajeImport, setMensajeImport] = useState<string | null>(null)
+  const [errorImport, setErrorImport] = useState<string | null>(null)
+
+  async function exportarEmpresa() {
+    setExportando(true)
+    setErrorExport(null)
+    try {
+      const { data } = await api.get('/accounts/exportar-empresa/')
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `respaldo_cmms_libre_${new Date().toISOString().slice(0, 10)}.json`
+      link.click()
+      window.URL.revokeObjectURL(url)
+      setYaExporto(true)
+    } catch (err) {
+      setErrorExport(detalleError(err, 'No se pudo exportar la empresa.'))
+    } finally {
+      setExportando(false)
+    }
+  }
+
+  async function importarEmpresa() {
+    if (!archivo) return
+    setImportando(true)
+    setErrorImport(null)
+    setMensajeImport(null)
+    try {
+      const texto = await archivo.text()
+      const payload = JSON.parse(texto)
+      await api.post('/accounts/importar-empresa/', payload)
+      setMensajeImport('Respaldo restaurado. Recargando...')
+      setTimeout(() => window.location.reload(), 1000)
+    } catch (err) {
+      setErrorImport(detalleError(err, 'No se pudo restaurar el respaldo.'))
+    } finally {
+      setImportando(false)
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-5 space-y-3">
+      <h2 className="text-sm font-semibold text-slate-700">Respaldo y restauración</h2>
+      <p className="text-sm text-slate-500">
+        Exporta todos los datos de tu empresa (activos, avisos, órdenes de trabajo, inventario,
+        compras, producción...) a un archivo JSON que puedes guardar fuera del servidor. No incluye
+        cuentas de usuario ni archivos adjuntos. Restaurarlo solo funciona en una empresa vacía.
+      </p>
+      {errorExport && <p className="text-sm text-red-600">{errorExport}</p>}
+      <button
+        onClick={exportarEmpresa}
+        disabled={exportando}
+        className="text-sm font-medium text-white bg-slate-800 hover:bg-slate-700 rounded-md px-4 py-2 disabled:opacity-50"
+      >
+        {exportando ? 'Exportando...' : 'Exportar empresa (JSON)'}
+      </button>
+
+      <div className="pt-2 border-t border-slate-100 space-y-2">
+        <label className="block text-xs font-medium text-slate-500">
+          Restaurar desde un archivo de respaldo
+        </label>
+        <input
+          type="file"
+          accept=".json"
+          onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
+          className="text-sm"
+        />
+        {errorImport && <p className="text-sm text-red-600">{errorImport}</p>}
+        {mensajeImport && <p className="text-sm text-emerald-600">{mensajeImport}</p>}
+        <button
+          onClick={importarEmpresa}
+          disabled={importando || !archivo}
+          className="text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-md px-4 py-2 disabled:opacity-50"
+        >
+          {importando ? 'Restaurando...' : 'Restaurar respaldo'}
+        </button>
+      </div>
+      {yaExporto && (
+        <p className="text-xs text-emerald-600">
+          Ya exportaste un respaldo en esta sesión — puedes continuar con «Restablecer instalación»
+          si lo necesitas.
+        </p>
+      )}
+    </div>
+  )
+}
+
 export default function Settings() {
   const { logout } = useAuth()
   const navigate = useNavigate()
@@ -297,6 +392,7 @@ export default function Settings() {
   const [errorDemo, setErrorDemo] = useState<string | null>(null)
 
   const [confirmacion, setConfirmacion] = useState('')
+  const [passwordReinicio, setPasswordReinicio] = useState('')
   const [reiniciando, setReiniciando] = useState(false)
   const [errorReinicio, setErrorReinicio] = useState<string | null>(null)
 
@@ -319,7 +415,10 @@ export default function Settings() {
     setReiniciando(true)
     setErrorReinicio(null)
     try {
-      await api.post('/accounts/reiniciar-instalacion/', { confirmar: confirmacion })
+      await api.post('/accounts/reiniciar-instalacion/', {
+        confirmar: confirmacion,
+        password: passwordReinicio,
+      })
       logout()
       navigate('/login')
     } catch (err) {
@@ -339,6 +438,8 @@ export default function Settings() {
       <UsuariosManager />
 
       <ConfiguracionFallas />
+
+      <RespaldoEmpresa />
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-5 space-y-3">
         <h2 className="text-sm font-semibold text-slate-700">Datos de demostración</h2>
@@ -362,22 +463,34 @@ export default function Settings() {
         <p className="text-sm text-slate-500">
           Borra <strong>todo</strong>: activos, avisos, órdenes de trabajo, inventario, usuarios —
           deja la instalación como recién instalada, con un único usuario <code>admin</code> que
-          deberá cambiar su contraseña al entrar. Esta acción no se puede deshacer.
+          deberá cambiar su contraseña al entrar. Esta acción no se puede deshacer:{' '}
+          <strong>exporta tu empresa arriba antes de continuar</strong>.
         </p>
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1">
-            Escribe <strong>BORRAR</strong> para confirmar
-          </label>
-          <input
-            value={confirmacion}
-            onChange={(e) => setConfirmacion(e.target.value)}
-            className="w-full max-w-xs rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-xl">
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">
+              Escribe <strong>BORRAR</strong> para confirmar
+            </label>
+            <input
+              value={confirmacion}
+              onChange={(e) => setConfirmacion(e.target.value)}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Tu contraseña</label>
+            <input
+              type="password"
+              value={passwordReinicio}
+              onChange={(e) => setPasswordReinicio(e.target.value)}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
         </div>
         {errorReinicio && <p className="text-sm text-red-600">{errorReinicio}</p>}
         <button
           onClick={reiniciarInstalacion}
-          disabled={reiniciando || confirmacion !== 'BORRAR'}
+          disabled={reiniciando || confirmacion !== 'BORRAR' || !passwordReinicio}
           className="text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {reiniciando ? 'Restableciendo...' : 'Restablecer instalación'}

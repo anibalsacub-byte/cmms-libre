@@ -5,6 +5,8 @@ from .views import (
     CambiarPasswordView,
     CargarDemoView,
     ConfiguracionEmpresaView,
+    ExportarEmpresaView,
+    ImportarEmpresaView,
     ReiniciarInstalacionView,
     RegistrarEmpresaView,
     UsuarioViewSet,
@@ -28,4 +30,6 @@ urlpatterns = [
         ConfiguracionEmpresaView.as_view(),
         name="configuracion-empresa",
     ),
+    path("exportar-empresa/", ExportarEmpresaView.as_view(), name="exportar-empresa"),
+    path("importar-empresa/", ImportarEmpresaView.as_view(), name="importar-empresa"),
 ] + router.urls

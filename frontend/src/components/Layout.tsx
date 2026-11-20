@@ -9,6 +9,7 @@ const links = [
   { to: '/avisos', label: 'Avisos', gestion: false, soloAdmin: false },
   { to: '/ordenes', label: 'Órdenes de trabajo', gestion: false, soloAdmin: false },
   { to: '/preventivo', label: 'Planes preventivos', gestion: true, soloAdmin: false },
+  { to: '/planificacion', label: 'Planificación', gestion: true, soloAdmin: false },
   { to: '/inventario', label: 'Inventario', gestion: false, soloAdmin: false },
   { to: '/bom', label: 'BOM / Repuestos', gestion: true, soloAdmin: false },
   { to: '/fallas', label: 'Catálogo de fallas', gestion: true, soloAdmin: false },

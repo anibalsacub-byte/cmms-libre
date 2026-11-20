@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Especialidad, Habilidad, Tecnico
+from .models import Ausencia, Especialidad, Habilidad, Tecnico
 
 
 class EspecialidadSerializer(serializers.ModelSerializer):
@@ -24,3 +24,12 @@ class TecnicoSerializer(serializers.ModelSerializer):
         model = Tecnico
         fields = "__all__"
         read_only_fields = ["empresa"]
+
+
+class AusenciaSerializer(serializers.ModelSerializer):
+    tecnico_codigo = serializers.CharField(source="tecnico.codigo", read_only=True)
+    tecnico_nombre = serializers.CharField(source="tecnico.nombre", read_only=True)
+
+    class Meta:
+        model = Ausencia
+        fields = "__all__"

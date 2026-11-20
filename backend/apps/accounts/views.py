@@ -121,9 +121,69 @@ class CargarDemoView(APIView):
         return Response({"detail": "Datos de demostración cargados."})
 
 
+class ExportarEmpresaView(APIView):
+    """P0-8: exporta TODOS los datos de la empresa del usuario a un JSON
+    descargable (catálogos globales y adjuntos quedan fuera; ver el
+    docstring de `exportar_empresa`)."""
+
+    permission_classes = [SoloAdminDeEmpresa]
+
+    def get(self, request):
+        from apps.companies.services import exportar_empresa
+
+        return Response(exportar_empresa(request.user.perfil.empresa))
+
+
+class ImportarEmpresaView(APIView):
+    """P0-8: restaura un export de `ExportarEmpresaView` dentro de la empresa
+    del usuario, que debe estar vacía (mismo requisito que cargar la demo),
+    para no mezclar datos con FKs remapeadas a medias."""
+
+    permission_classes = [SoloAdminDeEmpresa]
+
+    def post(self, request):
+        from apps.assets.models import Activo
+        from apps.companies.services import importar_empresa
+
+        empresa = request.user.perfil.empresa
+        if Activo.objects.filter(empresa=empresa).exists():
+            return Response(
+                {
+                    "detail": (
+                        "Ya hay datos en esta empresa. Restaura un respaldo solo en una "
+                        "empresa vacía (usa «Restablecer instalación» primero si quieres "
+                        "partir de cero)."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        payload = request.data
+        if not isinstance(payload, dict) or "datos" not in payload:
+            return Response(
+                {"detail": "El archivo no parece un respaldo válido de CMMS Libre."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            importar_empresa(empresa, payload)
+        except Exception:
+            return Response(
+                {"detail": "No se pudo restaurar el respaldo: el archivo está corrupto o no es compatible."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({"detail": "Respaldo restaurado correctamente."})
+
+
 class ReiniciarInstalacionView(APIView):
     """Borra TODOS los datos de LA EMPRESA del usuario (activos, avisos, OT,
-    inventario...). No borra la cuenta ni otras empresas. Irreversible."""
+    inventario...). No borra la cuenta ni otras empresas. Irreversible.
+
+    P0-8: además de escribir BORRAR, exige la contraseña del usuario que
+    confirma — una exportación previa no se puede verificar desde el
+    servidor (no sabe si el navegador guardó el archivo), así que el gesto
+    de identidad extra es la salvaguarda real contra un clic accidental."""
 
     permission_classes = [SoloAdminDeEmpresa]
 
@@ -133,6 +193,12 @@ class ReiniciarInstalacionView(APIView):
         if request.data.get("confirmar") != "BORRAR":
             return Response(
                 {"detail": "Falta confirmar la acción."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        password = request.data.get("password") or ""
+        if not request.user.check_password(password):
+            return Response(
+                {"detail": "Contraseña incorrecta."}, status=status.HTTP_400_BAD_REQUEST
             )
 
         borrar_datos_empresa(request.user.perfil.empresa)

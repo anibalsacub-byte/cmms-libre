@@ -1,3 +1,4 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 from .views import (
     OrdenTrabajoViewSet,
@@ -6,6 +7,7 @@ from .views import (
     MaterialUtilizadoViewSet,
     IntentoReparacionViewSet,
     BitacoraOTViewSet,
+    PlanificacionSemanaView,
 )
 
 router = DefaultRouter()
@@ -16,4 +18,6 @@ router.register("materiales-utilizados", MaterialUtilizadoViewSet)
 router.register("intentos", IntentoReparacionViewSet)
 router.register("bitacora", BitacoraOTViewSet)
 
-urlpatterns = router.urls
+urlpatterns = [
+    path("planificacion/semana/", PlanificacionSemanaView.as_view(), name="planificacion-semana"),
+] + router.urls

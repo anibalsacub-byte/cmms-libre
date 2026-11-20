@@ -1,13 +1,18 @@
 import csv
+from datetime import datetime, timedelta
 
+from django.db.models import Sum
 from django.http import StreamingHttpResponse
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from apps.accounts.permissions import TecnicoEscribeAdministracionGestiona
 from apps.companies.mixins import EmpresaScopedMixin
+from apps.hr.models import Tecnico
 from .models import (
     OrdenTrabajo,
     TareaOT,
@@ -211,6 +216,10 @@ class AsignacionTecnicoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
             self._verificar_ot_abierta(orden)
         super().perform_create(serializer)
 
+    def perform_update(self, serializer):
+        self._verificar_ot_abierta(serializer.instance.orden_trabajo)
+        super().perform_update(serializer)
+
     def perform_destroy(self, instance):
         self._verificar_ot_abierta(instance.orden_trabajo)
         instance.delete()
@@ -259,3 +268,111 @@ class BitacoraOTViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
     filterset_fields = ["orden_trabajo"]
     empresa_lookup = "orden_trabajo__empresa"
     parent_field = "orden_trabajo"
+
+
+class PlanificacionSemanaView(APIView):
+    """P1-2/P1-3: calendario semanal de carga por técnico — asignaciones por
+    día, sobrecarga (horas planificadas > capacidad del día, o ausencia) y
+    el backlog expresado en semanas de capacidad del equipo."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        empresa = getattr(request.user.perfil, "empresa", None) if hasattr(request.user, "perfil") else None
+
+        fecha_str = request.query_params.get("fecha_inicio")
+        if fecha_str:
+            try:
+                fecha_inicio = datetime.strptime(fecha_str, "%Y-%m-%d").date()
+            except ValueError:
+                return Response(
+                    {"detail": "fecha_inicio debe tener formato AAAA-MM-DD."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            hoy = timezone.now().date()
+            fecha_inicio = hoy - timedelta(days=hoy.weekday())
+
+        dias = [fecha_inicio + timedelta(days=i) for i in range(7)]
+
+        tecnicos_qs = Tecnico.objects.filter(empresa=empresa, activo=True).order_by("codigo")
+        asignaciones = (
+            AsignacionTecnico.objects.filter(
+                tecnico__in=tecnicos_qs, fecha__gte=dias[0], fecha__lte=dias[-1]
+            )
+            .select_related("orden_trabajo", "orden_trabajo__activo")
+            .order_by("fecha")
+        )
+
+        asignaciones_por_tecnico = {}
+        for a in asignaciones:
+            asignaciones_por_tecnico.setdefault(a.tecnico_id, []).append(a)
+
+        tecnicos_payload = []
+        for tecnico in tecnicos_qs:
+            dias_payload = {}
+            for fecha in dias:
+                asignaciones_dia = [
+                    a for a in asignaciones_por_tecnico.get(tecnico.id, []) if a.fecha == fecha
+                ]
+                ausente = tecnico.tiene_ausencia(fecha)
+                horas_planificadas = sum(float(a.horas_planificadas) for a in asignaciones_dia)
+                dias_payload[fecha.isoformat()] = {
+                    "ausente": ausente,
+                    "horas_planificadas": round(horas_planificadas, 2),
+                    "horas_disponibles": (
+                        0.0 if ausente else round(float(tecnico.capacidad_diaria_horas) - horas_planificadas, 2)
+                    ),
+                    "sobrecarga": (not ausente) and horas_planificadas > float(tecnico.capacidad_diaria_horas),
+                    "asignaciones": [
+                        {
+                            "id": a.id,
+                            "orden_trabajo": a.orden_trabajo_id,
+                            "orden_trabajo_numero": a.orden_trabajo.numero,
+                            "activo_codigo": a.orden_trabajo.activo.codigo,
+                            "descripcion": a.orden_trabajo.descripcion,
+                            "horas_planificadas": float(a.horas_planificadas),
+                            "horas_reales": float(a.horas_reales) if a.horas_reales is not None else None,
+                        }
+                        for a in asignaciones_dia
+                    ],
+                }
+            tecnicos_payload.append(
+                {
+                    "id": tecnico.id,
+                    "codigo": tecnico.codigo,
+                    "nombre": tecnico.nombre,
+                    "capacidad_diaria_horas": float(tecnico.capacidad_diaria_horas),
+                    "dias": dias_payload,
+                }
+            )
+
+        # Backlog en semanas de capacidad: horas planificadas pendientes de
+        # ejecutar (sin horas reales) de OT aún abiertas ÷ capacidad semanal
+        # del equipo (5 días hábiles por técnico activo y disponible).
+        horas_pendientes = float(
+            AsignacionTecnico.objects.filter(
+                tecnico__empresa=empresa,
+                horas_reales__isnull=True,
+            )
+            .exclude(orden_trabajo__estado__in=["CERRADA", "CANCELADA"])
+            .aggregate(total=Sum("horas_planificadas"))["total"]
+            or 0
+        )
+        capacidad_semanal_total = sum(
+            float(t.capacidad_diaria_horas) * 5
+            for t in Tecnico.objects.filter(empresa=empresa, activo=True, disponible=True)
+        )
+        backlog_semanas = (
+            round(horas_pendientes / capacidad_semanal_total, 2) if capacidad_semanal_total else None
+        )
+
+        return Response(
+            {
+                "dias": [d.isoformat() for d in dias],
+                "tecnicos": tecnicos_payload,
+                "horas_pendientes": round(horas_pendientes, 2),
+                "capacidad_semanal_total_horas": round(capacidad_semanal_total, 2),
+                "backlog_semanas": backlog_semanas,
+            }
+        )

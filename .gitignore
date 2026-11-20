@@ -6,6 +6,7 @@ backend/**/migrations/__pycache__/
 backend/db.sqlite3
 backend/staticfiles/
 backend/media/
+backend/backups/
 backend/.env
 backend/credenciales_admin.txt
 backend/build/
