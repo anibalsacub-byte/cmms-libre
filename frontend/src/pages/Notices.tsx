@@ -1,6 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../api/client'
-import type { Activo, Aviso, Paginated } from '../types'
+import type {
+  Activo,
+  Aviso,
+  CausaFalla,
+  MecanismoFalla,
+  ModoFalla,
+  Paginated,
+  Sintoma,
+} from '../types'
 import Badge from '../components/Badge'
 import { useAuth } from '../context/AuthContext'
 
@@ -19,7 +27,20 @@ export default function Notices() {
   const [loadingId, setLoadingId] = useState<number | null>(null)
   const [mostrarForm, setMostrarForm] = useState(false)
   const [enviando, setEnviando] = useState(false)
-  const [form, setForm] = useState({ activo: '', descripcion: '', prioridad: 'MEDIA' })
+  const [form, setForm] = useState({
+    activo: '',
+    descripcion: '',
+    prioridad: 'MEDIA',
+    sintoma: '',
+    modo_falla: '',
+    mecanismo_falla: '',
+    causa_falla: '',
+  })
+
+  const [sintomas, setSintomas] = useState<Sintoma[]>([])
+  const [modos, setModos] = useState<ModoFalla[]>([])
+  const [mecanismos, setMecanismos] = useState<MecanismoFalla[]>([])
+  const [causas, setCausas] = useState<CausaFalla[]>([])
 
   function load() {
     api.get<Paginated<Aviso>>('/notices/avisos/').then((res) => setAvisos(res.data.results))
@@ -28,6 +49,12 @@ export default function Notices() {
   useEffect(load, [])
   useEffect(() => {
     api.get<Paginated<Activo>>('/assets/activos/').then((res) => setActivos(res.data.results))
+    api.get<Paginated<Sintoma>>('/failures/sintomas/').then((res) => setSintomas(res.data.results))
+    api.get<Paginated<ModoFalla>>('/failures/modos-falla/').then((res) => setModos(res.data.results))
+    api
+      .get<Paginated<MecanismoFalla>>('/failures/mecanismos-falla/')
+      .then((res) => setMecanismos(res.data.results))
+    api.get<Paginated<CausaFalla>>('/failures/causas-falla/').then((res) => setCausas(res.data.results))
   }, [])
 
   async function convertir(aviso: Aviso) {
@@ -50,8 +77,20 @@ export default function Notices() {
         descripcion: form.descripcion,
         prioridad: form.prioridad,
         reportado_por: me?.username ?? 'Usuario',
+        sintoma: form.sintoma ? Number(form.sintoma) : null,
+        modo_falla: form.modo_falla ? Number(form.modo_falla) : null,
+        mecanismo_falla: form.mecanismo_falla ? Number(form.mecanismo_falla) : null,
+        causa_falla: form.causa_falla ? Number(form.causa_falla) : null,
       })
-      setForm({ activo: '', descripcion: '', prioridad: 'MEDIA' })
+      setForm({
+        activo: '',
+        descripcion: '',
+        prioridad: 'MEDIA',
+        sintoma: '',
+        modo_falla: '',
+        mecanismo_falla: '',
+        causa_falla: '',
+      })
       setMostrarForm(false)
       load()
     } finally {
@@ -115,6 +154,75 @@ export default function Notices() {
               <option value="BAJA">Baja</option>
             </select>
           </div>
+
+          <div>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">
+              Clasificación de falla (ISO 14224, opcional)
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Síntoma</label>
+                <select
+                  value={form.sintoma}
+                  onChange={(e) => setForm((f) => ({ ...f, sintoma: e.target.value }))}
+                  className="w-full rounded-md border border-slate-300 text-sm px-2 py-1.5"
+                >
+                  <option value="">Sin especificar</option>
+                  {sintomas.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Modo de falla</label>
+                <select
+                  value={form.modo_falla}
+                  onChange={(e) => setForm((f) => ({ ...f, modo_falla: e.target.value }))}
+                  className="w-full rounded-md border border-slate-300 text-sm px-2 py-1.5"
+                >
+                  <option value="">Sin especificar</option>
+                  {modos.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.codigo} - {m.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Mecanismo</label>
+                <select
+                  value={form.mecanismo_falla}
+                  onChange={(e) => setForm((f) => ({ ...f, mecanismo_falla: e.target.value }))}
+                  className="w-full rounded-md border border-slate-300 text-sm px-2 py-1.5"
+                >
+                  <option value="">Sin especificar</option>
+                  {mecanismos.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.codigo} - {m.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Causa</label>
+                <select
+                  value={form.causa_falla}
+                  onChange={(e) => setForm((f) => ({ ...f, causa_falla: e.target.value }))}
+                  className="w-full rounded-md border border-slate-300 text-sm px-2 py-1.5"
+                >
+                  <option value="">Sin especificar</option>
+                  {causas.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.codigo} - {c.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
           <button
             type="submit"
             disabled={enviando}
@@ -132,6 +240,7 @@ export default function Notices() {
               <th className="text-left px-4 py-2">Número</th>
               <th className="text-left px-4 py-2">Activo</th>
               <th className="text-left px-4 py-2">Descripción</th>
+              <th className="text-left px-4 py-2">Falla (modo)</th>
               <th className="text-left px-4 py-2">Prioridad</th>
               <th className="text-left px-4 py-2">Estado</th>
               <th className="text-left px-4 py-2">Reportado por</th>
@@ -147,6 +256,9 @@ export default function Notices() {
                 </td>
                 <td className="px-4 py-2 max-w-xs truncate" title={a.descripcion}>
                   {a.descripcion}
+                </td>
+                <td className="px-4 py-2 text-slate-500">
+                  {a.modo_falla_nombre ? `${a.modo_falla_codigo} - ${a.modo_falla_nombre}` : '—'}
                 </td>
                 <td className="px-4 py-2">
                   <Badge value={a.prioridad} />
@@ -170,7 +282,7 @@ export default function Notices() {
             ))}
             {avisos.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
                   Sin avisos todavía.
                 </td>
               </tr>

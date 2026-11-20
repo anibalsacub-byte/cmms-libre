@@ -52,6 +52,17 @@ export type Aviso = {
   estado: 'ABIERTO' | 'EN_EVALUACION' | 'CONVERTIDO_OT' | 'RECHAZADO' | 'CERRADO'
   afecta_produccion: boolean
   tiempo_parada_horas: string
+  sintoma: number | null
+  sintoma_nombre: string | null
+  modo_falla: number | null
+  modo_falla_codigo: string | null
+  modo_falla_nombre: string | null
+  mecanismo_falla: number | null
+  mecanismo_falla_codigo: string | null
+  mecanismo_falla_nombre: string | null
+  causa_falla: number | null
+  causa_falla_codigo: string | null
+  causa_falla_nombre: string | null
 }
 
 export type OrdenTrabajo = {
@@ -82,6 +93,17 @@ export type OrdenTrabajoDetalle = OrdenTrabajo & {
   tiempo_parada_horas: string
   costo_mano_obra: number
   costo_materiales: number
+  sintoma: number | null
+  sintoma_nombre: string | null
+  modo_falla: number | null
+  modo_falla_codigo: string | null
+  modo_falla_nombre: string | null
+  mecanismo_falla: number | null
+  mecanismo_falla_codigo: string | null
+  mecanismo_falla_nombre: string | null
+  causa_falla: number | null
+  causa_falla_codigo: string | null
+  causa_falla_nombre: string | null
   tareas: { id: number; descripcion: string; completada: boolean }[]
   asignaciones: {
     id: number
@@ -349,6 +371,12 @@ export type DashboardData = {
     ordenes_trabajo_abiertas: number
     backlog: number
     ordenes_por_estado: Record<string, number>
+    pct_preventivo: number
+    pct_correctivo: number
+    costo_por_activo: { activo_codigo: string; activo_nombre: string; costo: number }[]
+    edad_promedio_ot_abiertas_dias: number
+    cumplimiento_preventivo_pct: number | null
+    total_planes_preventivos_activos: number
   }
   oee: {
     disponibilidad: number

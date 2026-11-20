@@ -15,12 +15,20 @@ class DashboardView(APIView):
     def get(self, request):
         dias = int(request.query_params.get("dias", 30))
         activo_id = request.query_params.get("activo")
+        clase_id = request.query_params.get("clase")
+        ubicacion_id = request.query_params.get("ubicacion")
         linea_id = request.query_params.get("linea")
         empresa = _empresa(request)
 
         return Response(
             {
-                "mantenimiento": kpis_mantenimiento(empresa, dias=dias, activo_id=activo_id),
+                "mantenimiento": kpis_mantenimiento(
+                    empresa,
+                    dias=dias,
+                    activo_id=activo_id,
+                    clase_id=clase_id,
+                    ubicacion_id=ubicacion_id,
+                ),
                 "oee": kpis_oee(empresa, dias=dias, linea_id=linea_id),
             }
         )

@@ -4,6 +4,7 @@ from .views import (
     MeView,
     CambiarPasswordView,
     CargarDemoView,
+    ConfiguracionEmpresaView,
     ReiniciarInstalacionView,
     RegistrarEmpresaView,
     UsuarioViewSet,
@@ -22,4 +23,9 @@ urlpatterns = [
         name="reiniciar-instalacion",
     ),
     path("registrar-empresa/", RegistrarEmpresaView.as_view(), name="registrar-empresa"),
+    path(
+        "configuracion-empresa/",
+        ConfiguracionEmpresaView.as_view(),
+        name="configuracion-empresa",
+    ),
 ] + router.urls

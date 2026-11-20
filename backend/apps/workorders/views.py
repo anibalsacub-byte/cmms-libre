@@ -27,6 +27,26 @@ from .serializers import (
 )
 
 
+CAMPOS_CLASIFICACION_FALLA = ("sintoma", "modo_falla", "mecanismo_falla", "causa_falla")
+
+
+def _aplicar_clasificacion_falla(orden, datos):
+    for campo in CAMPOS_CLASIFICACION_FALLA:
+        if campo in datos:
+            setattr(orden, f"{campo}_id", datos.get(campo) or None)
+
+
+def _falta_clasificacion_falla(orden):
+    """P1-7: el cierre de un correctivo exige modo/mecanismo/causa de falla,
+    salvo que la empresa lo haya hecho opcional en Configuración."""
+    empresa = orden.empresa
+    exige = empresa.exige_clasificacion_falla_en_cierre if empresa else True
+    if orden.tipo != "CORRECTIVO" or not exige:
+        return False
+    obligatorios = ("modo_falla", "mecanismo_falla", "causa_falla")
+    return any(getattr(orden, f"{campo}_id") is None for campo in obligatorios)
+
+
 class OrdenTrabajoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
     queryset = OrdenTrabajo.objects.all().select_related("activo", "tecnico_principal", "aviso")
     permission_classes = [TecnicoEscribeAdministracionGestiona]
@@ -53,6 +73,19 @@ class OrdenTrabajoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
         if nuevo_estado not in dict(OrdenTrabajo.ESTADO_CHOICES):
             return Response({"detail": "Estado inválido."}, status=status.HTTP_400_BAD_REQUEST)
 
+        if nuevo_estado == "CERRADA":
+            _aplicar_clasificacion_falla(orden, request.data)
+            if _falta_clasificacion_falla(orden):
+                return Response(
+                    {
+                        "detail": (
+                            "Para cerrar una OT correctiva debes indicar modo, mecanismo y "
+                            "causa de falla (ISO 14224)."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         estado_anterior = orden.estado
         orden.estado = nuevo_estado
         if nuevo_estado == "EN_PROGRESO" and not orden.fecha_inicio:
@@ -72,6 +105,18 @@ class OrdenTrabajoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def cerrar(self, request, pk=None):
         orden = self.get_object()
+        _aplicar_clasificacion_falla(orden, request.data)
+        if _falta_clasificacion_falla(orden):
+            return Response(
+                {
+                    "detail": (
+                        "Para cerrar una OT correctiva debes indicar modo, mecanismo y "
+                        "causa de falla (ISO 14224)."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         orden.estado = "CERRADA"
         orden.fecha_fin = timezone.now()
         orden.trabajo_realizado = request.data.get(

@@ -7,6 +7,13 @@ class Empresa(models.Model):
 
     nombre = models.CharField(max_length=150)
     creada_en = models.DateTimeField(auto_now_add=True)
+    exige_clasificacion_falla_en_cierre = models.BooleanField(
+        default=True,
+        help_text=(
+            "Si está activo, exige modo/mecanismo/causa de falla (ISO 14224) "
+            "al cerrar una OT correctiva."
+        ),
+    )
 
     class Meta:
         verbose_name = "Empresa"

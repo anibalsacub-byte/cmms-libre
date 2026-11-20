@@ -59,6 +59,21 @@ class OrdenTrabajoSerializer(serializers.ModelSerializer):
     tecnico_principal_nombre = serializers.CharField(
         source="tecnico_principal.nombre", read_only=True, default=None
     )
+    sintoma_nombre = serializers.CharField(source="sintoma.nombre", read_only=True, default=None)
+    modo_falla_codigo = serializers.CharField(source="modo_falla.codigo", read_only=True, default=None)
+    modo_falla_nombre = serializers.CharField(source="modo_falla.nombre", read_only=True, default=None)
+    mecanismo_falla_codigo = serializers.CharField(
+        source="mecanismo_falla.codigo", read_only=True, default=None
+    )
+    mecanismo_falla_nombre = serializers.CharField(
+        source="mecanismo_falla.nombre", read_only=True, default=None
+    )
+    causa_falla_codigo = serializers.CharField(
+        source="causa_falla.codigo", read_only=True, default=None
+    )
+    causa_falla_nombre = serializers.CharField(
+        source="causa_falla.nombre", read_only=True, default=None
+    )
     tareas = TareaOTSerializer(many=True, read_only=True)
     asignaciones = AsignacionTecnicoSerializer(many=True, read_only=True)
     materiales = MaterialUtilizadoSerializer(many=True, read_only=True)

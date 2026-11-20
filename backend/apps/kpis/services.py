@@ -1,24 +1,33 @@
 """Cálculo de indicadores de mantenimiento (EN 13306 / ISO 14224).
 
-Fórmulas usadas (simplificadas para el MVP, documentadas en el README):
+Fórmulas usadas (simplificadas para el MVP, documentadas también en pantalla
+en el Dashboard):
 
 - MTTR (Mean Time To Repair) = horas de parada acumuladas / número de fallas.
 - MTBF (Mean Time Between Failures) = horas operativas disponibles / número de fallas,
   donde "horas operativas disponibles" = (nº de activos activos x horas del periodo) - downtime.
 - Disponibilidad = horas operativas disponibles / horas totales del periodo = MTBF / (MTBF + MTTR).
+- % preventivo / % correctivo = OT de ese tipo creadas en el período ÷ total de OT creadas en el período.
+- Costo por activo = costo total (mano de obra + materiales) de sus OT en el período.
+- Edad de OT abiertas = promedio de días transcurridos desde la creación de cada OT que sigue sin cerrar
+  o cancelar (sin filtrar por período: siempre mira el total de OT abiertas hoy).
+- Cumplimiento del plan preventivo = % de planes preventivos activos que NO están vencidos hoy.
 
 Todas las funciones reciben `empresa` y filtran únicamente los datos de esa
-empresa (multi-tenant: cada una ve solo lo suyo).
+empresa (multi-tenant: cada una ve solo lo suyo). Los filtros `activo_id`,
+`clase_id` y `ubicacion_id` se combinan (AND) y `ubicacion_id` incluye las
+ubicaciones hijas de la seleccionada.
 """
 
 from datetime import timedelta
 from django.utils import timezone
-from django.db.models import Sum, Count, Q
+from django.db.models import Sum, Count
 
-from apps.assets.models import Activo
+from apps.assets.models import Activo, UbicacionTecnica
 from apps.notices.models import Aviso
 from apps.workorders.models import OrdenTrabajo
 from apps.production.models import RegistroProduccion
+from apps.pm_plans.models import PlanPreventivo
 
 
 def rango_periodo(dias=30):
@@ -27,23 +36,51 @@ def rango_periodo(dias=30):
     return inicio, fin
 
 
-def kpis_mantenimiento(empresa, dias=30, activo_id=None):
-    inicio, fin = rango_periodo(dias)
+def _ids_ubicacion_y_descendientes(ubicacion_id):
+    ids = [int(ubicacion_id)]
+    frontera = ids
+    while frontera:
+        hijos = list(
+            UbicacionTecnica.objects.filter(padre_id__in=frontera).values_list("id", flat=True)
+        )
+        ids.extend(hijos)
+        frontera = hijos
+    return ids
 
-    ot_qs = OrdenTrabajo.objects.filter(
-        empresa=empresa, tipo="CORRECTIVO", fecha_creacion__gte=inicio, fecha_creacion__lte=fin
-    )
+
+def _ids_activos_filtrados(empresa, activo_id=None, clase_id=None, ubicacion_id=None):
+    qs = Activo.objects.filter(empresa=empresa)
     if activo_id:
-        ot_qs = ot_qs.filter(activo_id=activo_id)
+        qs = qs.filter(id=activo_id)
+    if clase_id:
+        qs = qs.filter(clase_id=clase_id)
+    if ubicacion_id:
+        qs = qs.filter(ubicacion_tecnica_id__in=_ids_ubicacion_y_descendientes(ubicacion_id))
+    return list(qs.values_list("id", flat=True))
 
-    n_fallas = ot_qs.count()
+
+def kpis_mantenimiento(empresa, dias=30, activo_id=None, clase_id=None, ubicacion_id=None):
+    inicio, fin = rango_periodo(dias)
+    hay_filtro = bool(activo_id or clase_id or ubicacion_id)
+    activo_ids = _ids_activos_filtrados(empresa, activo_id, clase_id, ubicacion_id)
+
+    ot_todas_qs = OrdenTrabajo.objects.filter(empresa=empresa)
+    if hay_filtro:
+        ot_todas_qs = ot_todas_qs.filter(activo_id__in=activo_ids)
+
+    ot_correctivas_periodo_qs = ot_todas_qs.filter(
+        tipo="CORRECTIVO", fecha_creacion__gte=inicio, fecha_creacion__lte=fin
+    )
+    ot_periodo_qs = ot_todas_qs.filter(fecha_creacion__gte=inicio, fecha_creacion__lte=fin)
+
+    n_fallas = ot_correctivas_periodo_qs.count()
     downtime_total = float(
-        ot_qs.aggregate(total=Sum("tiempo_parada_horas"))["total"] or 0
+        ot_correctivas_periodo_qs.aggregate(total=Sum("tiempo_parada_horas"))["total"] or 0
     )
 
     activos_qs = Activo.objects.filter(empresa=empresa, estado__in=["OPERATIVO", "EN_MANTENIMIENTO"])
-    if activo_id:
-        activos_qs = activos_qs.filter(id=activo_id)
+    if hay_filtro:
+        activos_qs = activos_qs.filter(id__in=activo_ids)
     n_activos = activos_qs.count() or 1
 
     horas_periodo_totales = n_activos * dias * 24
@@ -57,16 +94,62 @@ def kpis_mantenimiento(empresa, dias=30, activo_id=None):
         else 0
     )
 
-    costo_total = sum(ot.costo_total for ot in ot_qs)
+    costo_total = sum(ot.costo_total for ot in ot_correctivas_periodo_qs)
 
     avisos_qs = Aviso.objects.filter(empresa=empresa, fecha_reporte__gte=inicio, fecha_reporte__lte=fin)
-    if activo_id:
-        avisos_qs = avisos_qs.filter(activo_id=activo_id)
+    if hay_filtro:
+        avisos_qs = avisos_qs.filter(activo_id__in=activo_ids)
 
-    todas_ot_qs = OrdenTrabajo.objects.filter(empresa=empresa)
-    if activo_id:
-        todas_ot_qs = todas_ot_qs.filter(activo_id=activo_id)
-    backlog = todas_ot_qs.exclude(estado__in=["CERRADA", "CANCELADA"]).count()
+    backlog = ot_todas_qs.exclude(estado__in=["CERRADA", "CANCELADA"]).count()
+
+    # % preventivo / correctivo del total de OT creadas en el período.
+    total_ot_periodo = ot_periodo_qs.count()
+    conteo_por_tipo = dict(
+        ot_periodo_qs.values("tipo").annotate(total=Count("id")).values_list("tipo", "total")
+    )
+    pct_preventivo = (
+        round(conteo_por_tipo.get("PREVENTIVO", 0) / total_ot_periodo * 100, 1)
+        if total_ot_periodo
+        else 0
+    )
+    pct_correctivo = (
+        round(conteo_por_tipo.get("CORRECTIVO", 0) / total_ot_periodo * 100, 1)
+        if total_ot_periodo
+        else 0
+    )
+
+    # Costo por activo: top 10 del período, de mayor a menor.
+    costo_por_activo_map = {}
+    for ot in ot_periodo_qs.select_related("activo"):
+        entrada = costo_por_activo_map.setdefault(
+            ot.activo_id,
+            {"activo_codigo": ot.activo.codigo, "activo_nombre": ot.activo.nombre, "costo": 0.0},
+        )
+        entrada["costo"] += ot.costo_total
+    costo_por_activo = sorted(
+        ({**e, "costo": round(e["costo"], 2)} for e in costo_por_activo_map.values()),
+        key=lambda e: -e["costo"],
+    )[:10]
+
+    # Edad de las OT actualmente abiertas (sin filtrar por período).
+    ahora = timezone.now()
+    edades_dias = [
+        (ahora - ot.fecha_creacion).total_seconds() / 86400
+        for ot in ot_todas_qs.exclude(estado__in=["CERRADA", "CANCELADA"]).only("fecha_creacion")
+    ]
+    edad_promedio_ot_abiertas_dias = (
+        round(sum(edades_dias) / len(edades_dias), 1) if edades_dias else 0
+    )
+
+    # Cumplimiento del plan preventivo: % de planes activos no vencidos hoy.
+    planes_qs = PlanPreventivo.objects.filter(activo__empresa=empresa, activo_flag=True)
+    if hay_filtro:
+        planes_qs = planes_qs.filter(activo_id__in=activo_ids)
+    total_planes = planes_qs.count()
+    vencidos = sum(1 for p in planes_qs if p.esta_vencido())
+    cumplimiento_preventivo_pct = (
+        round((total_planes - vencidos) / total_planes * 100, 1) if total_planes else None
+    )
 
     return {
         "periodo_dias": dias,
@@ -80,15 +163,21 @@ def kpis_mantenimiento(empresa, dias=30, activo_id=None):
             estado__in=["ABIERTO", "EN_EVALUACION"]
         ).count(),
         "avisos_totales_periodo": avisos_qs.count(),
-        "ordenes_trabajo_abiertas": OrdenTrabajo.objects.filter(empresa=empresa).exclude(
+        "ordenes_trabajo_abiertas": ot_todas_qs.exclude(
             estado__in=["CERRADA", "CANCELADA"]
         ).count(),
         "backlog": backlog,
         "ordenes_por_estado": dict(
-            todas_ot_qs.values("estado").annotate(total=Count("id")).values_list(
+            ot_todas_qs.values("estado").annotate(total=Count("id")).values_list(
                 "estado", "total"
             )
         ),
+        "pct_preventivo": pct_preventivo,
+        "pct_correctivo": pct_correctivo,
+        "costo_por_activo": costo_por_activo,
+        "edad_promedio_ot_abiertas_dias": edad_promedio_ot_abiertas_dias,
+        "cumplimiento_preventivo_pct": cumplimiento_preventivo_pct,
+        "total_planes_preventivos_activos": total_planes,
     }
 
 

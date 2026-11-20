@@ -242,6 +242,52 @@ function UsuariosManager() {
   )
 }
 
+function ConfiguracionFallas() {
+  const [exige, setExige] = useState<boolean | null>(null)
+  const [guardando, setGuardando] = useState(false)
+
+  useEffect(() => {
+    api
+      .get<{ exige_clasificacion_falla_en_cierre: boolean }>('/accounts/configuracion-empresa/')
+      .then((res) => setExige(res.data.exige_clasificacion_falla_en_cierre))
+  }, [])
+
+  async function alternar() {
+    if (exige === null) return
+    setGuardando(true)
+    try {
+      const { data } = await api.patch<{ exige_clasificacion_falla_en_cierre: boolean }>(
+        '/accounts/configuracion-empresa/',
+        { exige_clasificacion_falla_en_cierre: !exige },
+      )
+      setExige(data.exige_clasificacion_falla_en_cierre)
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-5 space-y-3">
+      <h2 className="text-sm font-semibold text-slate-700">Clasificación de falla al cerrar una OT</h2>
+      <p className="text-sm text-slate-500">
+        Si está activo, una orden de trabajo correctiva no se puede cerrar sin indicar modo,
+        mecanismo y causa de falla (ISO 14224). Desactívalo si tu equipo todavía no clasifica
+        fallas de forma sistemática.
+      </p>
+      <label className="flex items-center gap-2 text-sm text-slate-700">
+        <input
+          type="checkbox"
+          checked={exige ?? false}
+          disabled={exige === null || guardando}
+          onChange={alternar}
+          className="rounded border-slate-300"
+        />
+        Exigir clasificación de falla al cerrar un correctivo
+      </label>
+    </div>
+  )
+}
+
 export default function Settings() {
   const { logout } = useAuth()
   const navigate = useNavigate()
@@ -291,6 +337,8 @@ export default function Settings() {
       </div>
 
       <UsuariosManager />
+
+      <ConfiguracionFallas />
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-5 space-y-3">
         <h2 className="text-sm font-semibold text-slate-700">Datos de demostración</h2>

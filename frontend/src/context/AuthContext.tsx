@@ -7,6 +7,7 @@ export type Rol = 'ADMINISTRADOR' | 'PLANIFICADOR' | 'TECNICO' | 'SOLICITANTE' |
 export type Me = {
   id: number
   username: string
+  is_superuser: boolean
   rol: Rol
   rol_display: string
   tecnico_id: number | null
@@ -25,6 +26,7 @@ type AuthContextValue = {
   puedeGestionar: boolean
   puedeOperar: boolean
   esAdministrador: boolean
+  esSuperusuario: boolean
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -73,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const puedeGestionar = me?.rol === 'ADMINISTRADOR' || me?.rol === 'PLANIFICADOR'
   const puedeOperar = puedeGestionar || me?.rol === 'TECNICO'
   const esAdministrador = me?.rol === 'ADMINISTRADOR'
+  const esSuperusuario = me?.is_superuser ?? false
 
   return (
     <AuthContext.Provider
@@ -86,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         puedeGestionar,
         puedeOperar,
         esAdministrador,
+        esSuperusuario,
       }}
     >
       {children}

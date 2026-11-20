@@ -139,6 +139,30 @@ class ReiniciarInstalacionView(APIView):
         return Response({"detail": "Los datos de tu empresa fueron borrados."})
 
 
+class ConfiguracionEmpresaView(APIView):
+    """Parámetros de LA EMPRESA del Administrador (P1-7: hacer obligatoria u
+    opcional la clasificación de falla al cerrar un correctivo)."""
+
+    permission_classes = [SoloAdminDeEmpresa]
+
+    def get(self, request):
+        empresa = request.user.perfil.empresa
+        return Response(
+            {"exige_clasificacion_falla_en_cierre": empresa.exige_clasificacion_falla_en_cierre}
+        )
+
+    def patch(self, request):
+        empresa = request.user.perfil.empresa
+        if "exige_clasificacion_falla_en_cierre" in request.data:
+            empresa.exige_clasificacion_falla_en_cierre = bool(
+                request.data.get("exige_clasificacion_falla_en_cierre")
+            )
+            empresa.save(update_fields=["exige_clasificacion_falla_en_cierre"])
+        return Response(
+            {"exige_clasificacion_falla_en_cierre": empresa.exige_clasificacion_falla_en_cierre}
+        )
+
+
 class UsuarioViewSet(viewsets.ModelViewSet):
     """El Administrador de la empresa crea y gestiona las cuentas de sus
     técnicos, planificadores, supervisores, etc. Cada uno entra con su

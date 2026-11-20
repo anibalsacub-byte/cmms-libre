@@ -3,6 +3,7 @@ from apps.assets.models import Activo
 from apps.notices.models import Aviso
 from apps.hr.models import Tecnico
 from apps.inventory.models import Material
+from apps.failures.models import Sintoma, ModoFalla, MecanismoFalla, CausaFalla
 
 
 class OrdenTrabajo(models.Model):
@@ -44,6 +45,20 @@ class OrdenTrabajo(models.Model):
     descripcion = models.TextField()
     diagnostico = models.TextField(blank=True)
     trabajo_realizado = models.TextField(blank=True)
+
+    sintoma = models.ForeignKey(
+        Sintoma, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    modo_falla = models.ForeignKey(
+        ModoFalla, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    mecanismo_falla = models.ForeignKey(
+        MecanismoFalla, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    causa_falla = models.ForeignKey(
+        CausaFalla, null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+        help_text="Clasificación de falla (ISO 14224), capturada al cerrar un correctivo.",
+    )
 
     tecnico_principal = models.ForeignKey(
         Tecnico, null=True, blank=True, on_delete=models.SET_NULL, related_name="ordenes_lideradas"

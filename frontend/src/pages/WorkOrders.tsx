@@ -2,10 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api/client'
 import type {
   Adjunto,
+  CausaFalla,
   Material,
+  MecanismoFalla,
+  ModoFalla,
   OrdenTrabajo,
   OrdenTrabajoDetalle,
   Paginated,
+  Sintoma,
   Tecnico,
 } from '../types'
 import Badge from '../components/Badge'
@@ -58,7 +62,20 @@ export default function WorkOrders() {
   const [formMaterial, setFormMaterial] = useState({ material: '', cantidad: '', fuente: 'STOCK_LOCAL' })
 
   const [mostrarCierre, setMostrarCierre] = useState(false)
-  const [cierre, setCierre] = useState({ trabajo_realizado: '', tiempo_parada_horas: '' })
+  const [cierre, setCierre] = useState({
+    trabajo_realizado: '',
+    tiempo_parada_horas: '',
+    sintoma: '',
+    modo_falla: '',
+    mecanismo_falla: '',
+    causa_falla: '',
+  })
+  const [errorCierre, setErrorCierre] = useState<string | null>(null)
+
+  const [sintomas, setSintomas] = useState<Sintoma[]>([])
+  const [modos, setModos] = useState<ModoFalla[]>([])
+  const [mecanismos, setMecanismos] = useState<MecanismoFalla[]>([])
+  const [causas, setCausas] = useState<CausaFalla[]>([])
 
   const [filtroTexto, setFiltroTexto] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('')
@@ -90,6 +107,12 @@ export default function WorkOrders() {
   useEffect(() => {
     api.get<Paginated<Tecnico>>('/hr/tecnicos/').then((res) => setTecnicos(res.data.results))
     api.get<Paginated<Material>>('/inventory/materiales/').then((res) => setMateriales(res.data.results))
+    api.get<Paginated<Sintoma>>('/failures/sintomas/').then((res) => setSintomas(res.data.results))
+    api.get<Paginated<ModoFalla>>('/failures/modos-falla/').then((res) => setModos(res.data.results))
+    api
+      .get<Paginated<MecanismoFalla>>('/failures/mecanismos-falla/')
+      .then((res) => setMecanismos(res.data.results))
+    api.get<Paginated<CausaFalla>>('/failures/causas-falla/').then((res) => setCausas(res.data.results))
   }, [])
 
   function cargarAdjuntos(otId: number) {
@@ -116,7 +139,15 @@ export default function WorkOrders() {
   async function cambiarEstado(estado: string) {
     if (!seleccionada) return
     if (estado === 'CERRADA') {
-      setCierre({ trabajo_realizado: seleccionada.trabajo_realizado || '', tiempo_parada_horas: '' })
+      setCierre({
+        trabajo_realizado: seleccionada.trabajo_realizado || '',
+        tiempo_parada_horas: '',
+        sintoma: seleccionada.sintoma ? String(seleccionada.sintoma) : '',
+        modo_falla: seleccionada.modo_falla ? String(seleccionada.modo_falla) : '',
+        mecanismo_falla: seleccionada.mecanismo_falla ? String(seleccionada.mecanismo_falla) : '',
+        causa_falla: seleccionada.causa_falla ? String(seleccionada.causa_falla) : '',
+      })
+      setErrorCierre(null)
       setMostrarCierre(true)
       return
     }
@@ -136,14 +167,21 @@ export default function WorkOrders() {
   async function confirmarCierre() {
     if (!seleccionada) return
     setCambiando(true)
+    setErrorCierre(null)
     try {
       const { data } = await api.post<OrdenTrabajoDetalle>(`/workorders/ordenes/${seleccionada.id}/cerrar/`, {
         trabajo_realizado: cierre.trabajo_realizado,
         tiempo_parada_horas: cierre.tiempo_parada_horas || 0,
+        sintoma: cierre.sintoma ? Number(cierre.sintoma) : null,
+        modo_falla: cierre.modo_falla ? Number(cierre.modo_falla) : null,
+        mecanismo_falla: cierre.mecanismo_falla ? Number(cierre.mecanismo_falla) : null,
+        causa_falla: cierre.causa_falla ? Number(cierre.causa_falla) : null,
       })
       setSeleccionada(data)
       setMostrarCierre(false)
       load()
+    } catch (err) {
+      setErrorCierre(detalleError(err, 'No se pudo cerrar la OT.'))
     } finally {
       setCambiando(false)
     }
@@ -389,6 +427,94 @@ export default function WorkOrders() {
                         className="w-full rounded-md border border-slate-300 text-sm px-2 py-1.5"
                       />
                     </div>
+
+                    {seleccionada.tipo === 'CORRECTIVO' && (
+                      <div>
+                        <p className="text-xs font-medium text-amber-700 mb-2">
+                          Clasificación de falla (ISO 14224) — modo, mecanismo y causa son
+                          obligatorios para cerrar un correctivo, salvo que Configuración lo haga
+                          opcional.
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">
+                              Síntoma
+                            </label>
+                            <select
+                              value={cierre.sintoma}
+                              onChange={(e) => setCierre((f) => ({ ...f, sintoma: e.target.value }))}
+                              className="w-full rounded-md border border-slate-300 text-sm px-2 py-1.5"
+                            >
+                              <option value="">Sin especificar</option>
+                              {sintomas.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.nombre}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">
+                              Modo de falla
+                            </label>
+                            <select
+                              value={cierre.modo_falla}
+                              onChange={(e) =>
+                                setCierre((f) => ({ ...f, modo_falla: e.target.value }))
+                              }
+                              className="w-full rounded-md border border-slate-300 text-sm px-2 py-1.5"
+                            >
+                              <option value="">Sin especificar</option>
+                              {modos.map((m) => (
+                                <option key={m.id} value={m.id}>
+                                  {m.codigo} - {m.nombre}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">
+                              Mecanismo
+                            </label>
+                            <select
+                              value={cierre.mecanismo_falla}
+                              onChange={(e) =>
+                                setCierre((f) => ({ ...f, mecanismo_falla: e.target.value }))
+                              }
+                              className="w-full rounded-md border border-slate-300 text-sm px-2 py-1.5"
+                            >
+                              <option value="">Sin especificar</option>
+                              {mecanismos.map((m) => (
+                                <option key={m.id} value={m.id}>
+                                  {m.codigo} - {m.nombre}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">
+                              Causa
+                            </label>
+                            <select
+                              value={cierre.causa_falla}
+                              onChange={(e) =>
+                                setCierre((f) => ({ ...f, causa_falla: e.target.value }))
+                              }
+                              className="w-full rounded-md border border-slate-300 text-sm px-2 py-1.5"
+                            >
+                              <option value="">Sin especificar</option>
+                              {causas.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.codigo} - {c.nombre}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {errorCierre && <p className="text-xs text-red-600">{errorCierre}</p>}
                     <div className="flex gap-2">
                       <button
                         onClick={confirmarCierre}
@@ -452,6 +578,43 @@ export default function WorkOrders() {
                           Trabajo realizado
                         </h3>
                         <p className="text-sm text-slate-600">{seleccionada.trabajo_realizado}</p>
+                      </div>
+                    )}
+                    {(seleccionada.modo_falla || seleccionada.mecanismo_falla || seleccionada.causa_falla) && (
+                      <div>
+                        <h3 className="text-xs font-semibold text-slate-500 uppercase mb-1">
+                          Clasificación de falla (ISO 14224)
+                        </h3>
+                        <dl className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                          <div>
+                            <dt className="text-xs text-slate-500">Síntoma</dt>
+                            <dd className="text-slate-700">{seleccionada.sintoma_nombre || '—'}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs text-slate-500">Modo</dt>
+                            <dd className="text-slate-700">
+                              {seleccionada.modo_falla_nombre
+                                ? `${seleccionada.modo_falla_codigo} - ${seleccionada.modo_falla_nombre}`
+                                : '—'}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs text-slate-500">Mecanismo</dt>
+                            <dd className="text-slate-700">
+                              {seleccionada.mecanismo_falla_nombre
+                                ? `${seleccionada.mecanismo_falla_codigo} - ${seleccionada.mecanismo_falla_nombre}`
+                                : '—'}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs text-slate-500">Causa</dt>
+                            <dd className="text-slate-700">
+                              {seleccionada.causa_falla_nombre
+                                ? `${seleccionada.causa_falla_codigo} - ${seleccionada.causa_falla_nombre}`
+                                : '—'}
+                            </dd>
+                          </div>
+                        </dl>
                       </div>
                     )}
                   </div>
