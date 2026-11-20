@@ -11,6 +11,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.accounts.permissions import TecnicoEscribeAdministracionGestiona
+from apps.assets.models import Activo
+from apps.companies.csv_mixins import CsvImportExportMixin
 from apps.companies.mixins import EmpresaScopedMixin
 from apps.hr.models import Tecnico
 from .models import (
@@ -52,11 +54,63 @@ def _falta_clasificacion_falla(orden):
     return any(getattr(orden, f"{campo}_id") is None for campo in obligatorios)
 
 
-class OrdenTrabajoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
+class OrdenTrabajoViewSet(CsvImportExportMixin, EmpresaScopedMixin, viewsets.ModelViewSet):
     queryset = OrdenTrabajo.objects.all().select_related("activo", "tecnico_principal", "aviso")
     permission_classes = [TecnicoEscribeAdministracionGestiona]
     filterset_fields = ["estado", "tipo", "prioridad", "activo", "tecnico_principal"]
     search_fields = ["numero", "descripcion"]
+
+    campos_csv = [
+        "activo_codigo",
+        "tipo",
+        "prioridad",
+        "descripcion",
+        "estado",
+        "fecha_creacion",
+        "fecha_planificada",
+        "fecha_fin",
+        "trabajo_realizado",
+        "tiempo_parada_horas",
+    ]
+    def _valor_export(self, obj, campo):
+        if campo == "activo_codigo":
+            return obj.activo.codigo
+        if campo == "fecha_creacion":
+            return obj.fecha_creacion.date().isoformat()
+        return super()._valor_export(obj, campo)
+
+    def _preparar_fila_csv(self, fila):
+        empresa = self._empresa()
+        activo = Activo.objects.filter(empresa=empresa, codigo=fila["activo_codigo"]).first()
+        if activo is None:
+            raise ValueError(f"No existe el activo «{fila['activo_codigo']}».")
+        if fila["tipo"] not in dict(OrdenTrabajo.TIPO_CHOICES):
+            raise ValueError(
+                f"Tipo «{fila['tipo']}» inválido (usa CORRECTIVO, PREVENTIVO, PREDICTIVO o MEJORA)."
+            )
+        if fila["estado"] and fila["estado"] not in dict(OrdenTrabajo.ESTADO_CHOICES):
+            raise ValueError(f"Estado «{fila['estado']}» inválido.")
+
+        return {
+            "activo": activo.id,
+            "tipo": fila["tipo"],
+            "prioridad": fila["prioridad"] or "MEDIA",
+            "descripcion": fila["descripcion"] or "Importada desde CSV",
+            "estado": fila["estado"] or "CERRADA",
+            "fecha_planificada": fila["fecha_planificada"] or None,
+            "fecha_fin": fila["fecha_fin"] or None,
+            "trabajo_realizado": fila["trabajo_realizado"],
+            "tiempo_parada_horas": fila["tiempo_parada_horas"] or 0,
+        }
+
+    def _despues_de_crear_csv(self, instancia, fila):
+        if fila.get("fecha_creacion"):
+            OrdenTrabajo.objects.filter(pk=instancia.pk).update(
+                fecha_creacion=fila["fecha_creacion"]
+            )
+        BitacoraOT.objects.create(
+            orden_trabajo=instancia, evento="OT histórica importada desde CSV"
+        )
 
     def get_serializer_class(self):
         if self.action == "list":

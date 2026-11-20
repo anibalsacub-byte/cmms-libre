@@ -8,6 +8,7 @@ from apps.accounts.permissions import (
     SoloAdministracionEscribeAdminElimina,
     SoloSuperusuarioEscribe,
 )
+from apps.companies.csv_mixins import CsvImportExportMixin
 from apps.companies.mixins import EmpresaScopedMixin
 from .models import Almacen, GrupoMaterial, Material, StockAlmacen, MovimientoStock, TrasladoAlmacen
 from .serializers import (
@@ -33,12 +34,44 @@ class GrupoMaterialViewSet(viewsets.ModelViewSet):
     permission_classes = [SoloSuperusuarioEscribe]
 
 
-class MaterialViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
+class MaterialViewSet(CsvImportExportMixin, EmpresaScopedMixin, viewsets.ModelViewSet):
     queryset = Material.objects.all().prefetch_related("stocks")
     serializer_class = MaterialSerializer
     permission_classes = [SoloAdministracionEscribeAdminElimina]
     filterset_fields = ["grupo", "estado", "clase"]
     search_fields = ["codigo", "descripcion", "clase"]
+
+    campos_csv = [
+        "codigo",
+        "descripcion",
+        "grupo_nombre",
+        "clase",
+        "unidad_medida",
+        "costo_unitario",
+        "estado",
+        "tiempo_entrega_dias",
+    ]
+    def _valor_export(self, obj, campo):
+        if campo == "grupo_nombre":
+            return obj.grupo.nombre
+        return super()._valor_export(obj, campo)
+
+    def _preparar_fila_csv(self, fila):
+        nombre_grupo = fila["grupo_nombre"]
+        if not nombre_grupo:
+            raise ValueError("Falta el grupo de material.")
+        grupo, _ = GrupoMaterial.objects.get_or_create(nombre=nombre_grupo)
+
+        return {
+            "codigo": fila["codigo"],
+            "descripcion": fila["descripcion"],
+            "grupo": grupo.id,
+            "clase": fila["clase"],
+            "unidad_medida": fila["unidad_medida"] or "UN",
+            "costo_unitario": fila["costo_unitario"] or 0,
+            "estado": fila["estado"] or "ACTIVO",
+            "tiempo_entrega_dias": fila["tiempo_entrega_dias"] or 0,
+        }
 
 
 class StockAlmacenViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):

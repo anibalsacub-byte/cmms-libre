@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../api/client'
 import type { Activo, ClaseActivo, Paginated, UbicacionTecnica } from '../types'
 import Badge from '../components/Badge'
+import ImportarExportarCsv from '../components/ImportarExportarCsv'
 import { useAuth } from '../context/AuthContext'
 
 const ACTIVO_VACIO = {
@@ -262,6 +263,10 @@ export default function Assets() {
             </form>
           </div>
         </div>
+      )}
+
+      {puedeGestionar && (
+        <ImportarExportarCsv recurso="/assets/activos/" nombreArchivo="activos" onImportado={cargarActivos} />
       )}
 
       {editando !== null && (

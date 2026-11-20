@@ -235,6 +235,66 @@ def pareto_fallas(empresa, dias=90, activo_id=None):
     }
 
 
+def reporte_costos(empresa, dias=90, activo_id=None, clase_id=None, ubicacion_id=None):
+    """P2-5: reporte de costo de mantenimiento por activo y por ubicación
+    técnica, en el período — a diferencia de `costo_por_activo` del
+    Dashboard (que recorta a los 10 más caros), este trae la lista completa
+    para exportar/imprimir."""
+
+    inicio, fin = rango_periodo(dias)
+    activo_ids = _ids_activos_filtrados(empresa, activo_id, clase_id, ubicacion_id)
+    ot_qs = (
+        OrdenTrabajo.objects.filter(
+            empresa=empresa,
+            activo_id__in=activo_ids,
+            fecha_creacion__gte=inicio,
+            fecha_creacion__lte=fin,
+        )
+        .select_related("activo", "activo__ubicacion_tecnica")
+        .order_by("activo__codigo", "fecha_creacion")
+    )
+
+    por_activo_map = {}
+    por_ubicacion_map = {}
+    costo_total = 0.0
+
+    for ot in ot_qs:
+        costo = ot.costo_total
+        costo_total += costo
+
+        activo = ot.activo
+        entrada_activo = por_activo_map.setdefault(
+            activo.id,
+            {"activo_codigo": activo.codigo, "activo_nombre": activo.nombre, "costo": 0.0, "numero_ot": 0},
+        )
+        entrada_activo["costo"] += costo
+        entrada_activo["numero_ot"] += 1
+
+        ubicacion = activo.ubicacion_tecnica
+        entrada_ubicacion = por_ubicacion_map.setdefault(
+            ubicacion.id,
+            {"ubicacion_codigo": ubicacion.codigo, "ubicacion_nombre": ubicacion.nombre, "costo": 0.0},
+        )
+        entrada_ubicacion["costo"] += costo
+
+    por_activo = sorted(
+        ({**e, "costo": round(e["costo"], 2)} for e in por_activo_map.values()),
+        key=lambda e: -e["costo"],
+    )
+    por_ubicacion = sorted(
+        ({**e, "costo": round(e["costo"], 2)} for e in por_ubicacion_map.values()),
+        key=lambda e: -e["costo"],
+    )
+
+    return {
+        "periodo_dias": dias,
+        "costo_total": round(costo_total, 2),
+        "numero_ot": ot_qs.count(),
+        "por_activo": por_activo,
+        "por_ubicacion": por_ubicacion,
+    }
+
+
 def kpis_oee(empresa, dias=30, linea_id=None):
     inicio, _ = rango_periodo(dias)
     qs = RegistroProduccion.objects.filter(linea__empresa=empresa, fecha__gte=inicio.date())

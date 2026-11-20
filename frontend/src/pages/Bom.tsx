@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
+import ImportarExportarCsv from '../components/ImportarExportarCsv'
 import type { EquipoMaterial, Paginated } from '../types'
+import { useAuth } from '../context/AuthContext'
 
 export default function Bom() {
+  const { puedeGestionar } = useAuth()
   const [repuestos, setRepuestos] = useState<EquipoMaterial[]>([])
 
-  useEffect(() => {
+  function cargarRepuestos() {
     api
       .get<Paginated<EquipoMaterial>>('/bom/repuestos-activo/')
       .then((res) => setRepuestos(res.data.results))
-  }, [])
+  }
+
+  useEffect(cargarRepuestos, [])
 
   return (
     <div className="space-y-4">
@@ -20,6 +25,14 @@ export default function Bom() {
           descripción.
         </p>
       </div>
+
+      {puedeGestionar && (
+        <ImportarExportarCsv
+          recurso="/bom/repuestos-activo/"
+          nombreArchivo="bom"
+          onImportado={cargarRepuestos}
+        />
+      )}
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-xs uppercase">

@@ -8,6 +8,7 @@ import type {
   StockAlmacen,
   TrasladoAlmacen,
 } from '../types'
+import ImportarExportarCsv from '../components/ImportarExportarCsv'
 import { useAuth } from '../context/AuthContext'
 
 type GrupoMaterial = { id: number; nombre: string }
@@ -623,6 +624,14 @@ export default function Inventory() {
                 >
                   Nuevo material
                 </button>
+              )}
+
+              {puedeGestionar && (
+                <ImportarExportarCsv
+                  recurso="/inventory/materiales/"
+                  nombreArchivo="materiales"
+                  onImportado={cargarMateriales}
+                />
               )}
 
               {editandoMaterial !== null && (

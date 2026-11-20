@@ -13,6 +13,7 @@ import type {
   Tecnico,
 } from '../types'
 import Badge from '../components/Badge'
+import ImportarExportarCsv from '../components/ImportarExportarCsv'
 import { useAuth } from '../context/AuthContext'
 
 const ESTADOS = [
@@ -45,7 +46,7 @@ function detalleError(err: unknown, fallback: string) {
 }
 
 export default function WorkOrders() {
-  const { puedeOperar } = useAuth()
+  const { puedeOperar, puedeGestionar } = useAuth()
   const [ordenes, setOrdenes] = useState<OrdenTrabajo[]>([])
   const [seleccionada, setSeleccionada] = useState<OrdenTrabajoDetalle | null>(null)
   const [tab, setTab] = useState<TabKey>('general')
@@ -82,6 +83,7 @@ export default function WorkOrders() {
   const [filtroPrioridad, setFiltroPrioridad] = useState('')
   const filaSeleccionadaRef = useRef<HTMLTableRowElement>(null)
   const detalleRef = useRef<HTMLDivElement>(null)
+  const [mostrarImportar, setMostrarImportar] = useState(false)
 
   const ordenesFiltradas = useMemo(() => {
     return ordenes.filter((o) => {
@@ -255,7 +257,26 @@ export default function WorkOrders() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold text-slate-800">Órdenes de trabajo</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-slate-800">Órdenes de trabajo</h1>
+        {puedeGestionar && (
+          <button
+            onClick={() => setMostrarImportar((v) => !v)}
+            className="text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-md px-4 py-2"
+          >
+            {mostrarImportar ? 'Ocultar importar/exportar' : 'Importar OT históricas'}
+          </button>
+        )}
+      </div>
+
+      {mostrarImportar && puedeGestionar && (
+        <ImportarExportarCsv
+          recurso="/workorders/ordenes/"
+          nombreArchivo="ordenes_trabajo"
+          onImportado={load}
+        />
+      )}
+
       <div className="space-y-4">
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-3 space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">

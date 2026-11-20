@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../api/client'
+import ImportarExportarCsv from '../components/ImportarExportarCsv'
 import type { Paginated, Tecnico } from '../types'
 import { useAuth } from '../context/AuthContext'
 
@@ -132,6 +133,14 @@ export default function Technicians() {
           </button>
         )}
       </div>
+
+      {puedeGestionar && (
+        <ImportarExportarCsv
+          recurso="/hr/tecnicos/"
+          nombreArchivo="tecnicos"
+          onImportado={cargarTecnicos}
+        />
+      )}
 
       {editando !== null && (
         <form
