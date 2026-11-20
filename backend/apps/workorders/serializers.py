@@ -79,6 +79,7 @@ class OrdenTrabajoListSerializer(serializers.ModelSerializer):
     """Versión liviana para listados/tablas."""
 
     activo_codigo = serializers.CharField(source="activo.codigo", read_only=True)
+    activo_nombre = serializers.CharField(source="activo.nombre", read_only=True)
     costo_total = serializers.FloatField(read_only=True)
     en_backlog = serializers.BooleanField(read_only=True)
 
@@ -89,8 +90,10 @@ class OrdenTrabajoListSerializer(serializers.ModelSerializer):
             "numero",
             "activo",
             "activo_codigo",
+            "activo_nombre",
             "tipo",
             "prioridad",
+            "descripcion",
             "estado",
             "fecha_creacion",
             "fecha_planificada",

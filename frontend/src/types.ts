@@ -59,8 +59,10 @@ export type OrdenTrabajo = {
   numero: string
   activo: number
   activo_codigo: string
+  activo_nombre: string
   tipo: 'CORRECTIVO' | 'PREVENTIVO' | 'PREDICTIVO' | 'MEJORA'
   prioridad: 'ALTA' | 'MEDIA' | 'BAJA'
+  descripcion: string
   estado: string
   fecha_creacion: string
   fecha_planificada: string | null

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api/client'
 import type {
   Adjunto,
@@ -60,6 +60,28 @@ export default function WorkOrders() {
   const [mostrarCierre, setMostrarCierre] = useState(false)
   const [cierre, setCierre] = useState({ trabajo_realizado: '', tiempo_parada_horas: '' })
 
+  const [filtroTexto, setFiltroTexto] = useState('')
+  const [filtroEstado, setFiltroEstado] = useState('')
+  const [filtroPrioridad, setFiltroPrioridad] = useState('')
+  const filaSeleccionadaRef = useRef<HTMLTableRowElement>(null)
+  const detalleRef = useRef<HTMLDivElement>(null)
+
+  const ordenesFiltradas = useMemo(() => {
+    return ordenes.filter((o) => {
+      if (filtroEstado && o.estado !== filtroEstado) return false
+      if (filtroPrioridad && o.prioridad !== filtroPrioridad) return false
+      if (filtroTexto) {
+        const q = filtroTexto.toLowerCase()
+        const enTexto =
+          o.numero.toLowerCase().includes(q) ||
+          o.activo_codigo.toLowerCase().includes(q) ||
+          o.descripcion.toLowerCase().includes(q)
+        if (!enTexto) return false
+      }
+      return true
+    })
+  }, [ordenes, filtroTexto, filtroEstado, filtroPrioridad])
+
   function load() {
     api.get<Paginated<OrdenTrabajo>>('/workorders/ordenes/').then((res) => setOrdenes(res.data.results))
   }
@@ -82,6 +104,7 @@ export default function WorkOrders() {
     cargarAdjuntos(id)
     setMostrarCierre(false)
     setTab('general')
+    setTimeout(() => detalleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
 
   async function recargarSeleccionada() {
@@ -195,38 +218,113 @@ export default function WorkOrders() {
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold text-slate-800">Órdenes de trabajo</h1>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-1 bg-white rounded-lg shadow-sm border border-slate-200 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
-              <tr>
-                <th className="text-left px-3 py-2">Número</th>
-                <th className="text-left px-3 py-2">Estado</th>
-                <th className="text-left px-3 py-2">Costo</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {ordenes.map((o) => (
-                <tr
-                  key={o.id}
-                  onClick={() => abrir(o.id)}
-                  className={`cursor-pointer hover:bg-slate-50 ${
-                    seleccionada?.id === o.id ? 'bg-slate-100' : ''
-                  }`}
-                >
-                  <td className="px-3 py-2 font-medium text-slate-700">
-                    {o.numero}
-                    <div className="text-xs text-slate-500 font-normal">{o.activo_codigo}</div>
-                  </td>
-                  <td className="px-3 py-2 text-slate-500">{o.estado}</td>
-                  <td className="px-3 py-2 text-slate-500">S/ {o.costo_total}</td>
+      <div className="space-y-4">
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-3 space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-slate-500 mb-1">
+                Número / Activo / Descripción
+              </label>
+              <input
+                value={filtroTexto}
+                onChange={(e) => setFiltroTexto(e.target.value)}
+                placeholder="Ej. OT-000012, BMB-001, fuga..."
+                className="w-full rounded-md border border-slate-300 text-sm px-2 py-1.5"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Estado</label>
+              <select
+                value={filtroEstado}
+                onChange={(e) => setFiltroEstado(e.target.value)}
+                className="w-full rounded-md border border-slate-300 text-sm px-2 py-1.5"
+              >
+                <option value="">Todos</option>
+                {ESTADOS.map((e) => (
+                  <option key={e} value={e}>
+                    {e}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Prioridad</label>
+              <select
+                value={filtroPrioridad}
+                onChange={(e) => setFiltroPrioridad(e.target.value)}
+                className="w-full rounded-md border border-slate-300 text-sm px-2 py-1.5"
+              >
+                <option value="">Todas</option>
+                <option value="ALTA">Alta</option>
+                <option value="MEDIA">Media</option>
+                <option value="BAJA">Baja</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto border border-slate-300 rounded">
+            <table className="w-full text-xs border-collapse">
+              <thead className="bg-slate-100 text-slate-600">
+                <tr>
+                  <th className="border border-slate-300 px-2 py-1.5 text-left">Orden</th>
+                  <th className="border border-slate-300 px-2 py-1.5 text-left">Activo</th>
+                  <th className="border border-slate-300 px-2 py-1.5 text-left">Texto breve</th>
+                  <th className="border border-slate-300 px-2 py-1.5 text-left">Tipo</th>
+                  <th className="border border-slate-300 px-2 py-1.5 text-left">Prioridad</th>
+                  <th className="border border-slate-300 px-2 py-1.5 text-left">Status</th>
+                  <th className="border border-slate-300 px-2 py-1.5 text-left">Fecha</th>
+                  <th className="border border-slate-300 px-2 py-1.5 text-right">Costo</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {ordenesFiltradas.map((o) => (
+                  <tr
+                    key={o.id}
+                    ref={seleccionada?.id === o.id ? filaSeleccionadaRef : undefined}
+                    onClick={() => abrir(o.id)}
+                    className={`cursor-pointer hover:bg-slate-50 ${
+                      seleccionada?.id === o.id ? 'bg-slate-100' : ''
+                    }`}
+                  >
+                    <td className="border border-slate-300 px-2 py-1.5 font-medium text-slate-700 whitespace-nowrap">
+                      {o.numero}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1.5 whitespace-nowrap">
+                      {o.activo_codigo}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1.5 max-w-xs truncate">
+                      {o.descripcion}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1.5 text-slate-500 whitespace-nowrap">
+                      {o.tipo}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1.5">
+                      <Badge value={o.prioridad} />
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1.5 text-slate-500 whitespace-nowrap">
+                      {o.estado}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1.5 text-slate-500 whitespace-nowrap">
+                      {new Date(o.fecha_creacion).toLocaleDateString()}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1.5 text-right text-slate-500 whitespace-nowrap">
+                      S/ {o.costo_total}
+                    </td>
+                  </tr>
+                ))}
+                {ordenesFiltradas.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="border border-slate-300 px-2 py-4 text-center text-slate-500">
+                      Sin órdenes para estos filtros.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-slate-200">
+        <div ref={detalleRef} className="bg-white rounded-lg shadow-sm border border-slate-200 scroll-mt-4">
           {!seleccionada ? (
             <p className="text-sm text-slate-500 p-4">Selecciona una OT para ver su detalle.</p>
           ) : (
