@@ -214,18 +214,110 @@ class ConfiguracionEmpresaView(APIView):
     def get(self, request):
         empresa = request.user.perfil.empresa
         return Response(
-            {"exige_clasificacion_falla_en_cierre": empresa.exige_clasificacion_falla_en_cierre}
+            {
+                "exige_clasificacion_falla_en_cierre": empresa.exige_clasificacion_falla_en_cierre,
+                "patron_codigo": empresa.patron_codigo,
+            }
         )
 
     def patch(self, request):
+        import re
+
         empresa = request.user.perfil.empresa
+        actualizar = []
         if "exige_clasificacion_falla_en_cierre" in request.data:
             empresa.exige_clasificacion_falla_en_cierre = bool(
                 request.data.get("exige_clasificacion_falla_en_cierre")
             )
-            empresa.save(update_fields=["exige_clasificacion_falla_en_cierre"])
+            actualizar.append("exige_clasificacion_falla_en_cierre")
+        if "patron_codigo" in request.data:
+            patron = (request.data.get("patron_codigo") or "").strip()
+            if patron:
+                try:
+                    re.compile(patron)
+                except re.error:
+                    return Response(
+                        {"detail": "Esa expresión regular no es válida."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            empresa.patron_codigo = patron
+            actualizar.append("patron_codigo")
+        if actualizar:
+            empresa.save(update_fields=actualizar)
         return Response(
-            {"exige_clasificacion_falla_en_cierre": empresa.exige_clasificacion_falla_en_cierre}
+            {
+                "exige_clasificacion_falla_en_cierre": empresa.exige_clasificacion_falla_en_cierre,
+                "patron_codigo": empresa.patron_codigo,
+            }
+        )
+
+
+MATRIZ_PERMISOS = [
+    {
+        "modulo": "Activos, ubicaciones técnicas",
+        "lectura": "Todos los roles",
+        "escribir": "Planificador, Administrador",
+        "eliminar": "Solo Administrador",
+    },
+    {
+        "modulo": "Clases de activo, BOM, inventario (materiales, almacenes), movimientos, traslados, compras, producción, planes preventivos",
+        "lectura": "Todos los roles",
+        "escribir": "Planificador, Administrador",
+        "eliminar": "Planificador, Administrador",
+    },
+    {
+        "modulo": "Catálogo de fallas (ISO 14224), especialidades, habilidades",
+        "lectura": "Todos los roles",
+        "escribir": "Solo el superusuario de la plataforma (catálogo global, compartido entre empresas)",
+        "eliminar": "Solo el superusuario de la plataforma",
+    },
+    {
+        "modulo": "Avisos de mantenimiento",
+        "lectura": "Todos los roles",
+        "escribir": "Crear: cualquier usuario autenticado. Editar/convertir a OT: Técnico, Planificador, Administrador",
+        "eliminar": "Técnico, Planificador, Administrador",
+    },
+    {
+        "modulo": "Órdenes de trabajo",
+        "lectura": "Un Técnico solo ve las OT donde es responsable o tiene horas asignadas; el resto de roles ve todas",
+        "escribir": "Técnico, Planificador, Administrador",
+        "eliminar": "Técnico, Planificador, Administrador",
+    },
+    {
+        "modulo": "Técnicos, ausencias",
+        "lectura": "Todos los roles",
+        "escribir": "Planificador, Administrador",
+        "eliminar": "Solo Administrador (técnicos); Planificador o Administrador (ausencias)",
+    },
+    {
+        "modulo": "Adjuntos",
+        "lectura": "Todos los roles",
+        "escribir": "Técnico, Planificador, Administrador",
+        "eliminar": "Técnico, Planificador, Administrador",
+    },
+    {
+        "modulo": "Usuarios de la empresa, configuración, respaldo/restauración, reiniciar instalación",
+        "lectura": "Solo Administrador",
+        "escribir": "Solo Administrador",
+        "eliminar": "Solo Administrador",
+    },
+]
+
+
+class MatrizPermisosView(APIView):
+    """P1-10: referencia de qué puede hacer cada rol por módulo. Es
+    documentación estructurada (no introspección en vivo de las clases de
+    permiso), para que un Administrador entienda el modelo de permisos sin
+    leer el código."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(
+            {
+                "roles": ["Administrador", "Planificador / Supervisor", "Técnico", "Solicitante", "Solo lectura"],
+                "modulos": MATRIZ_PERMISOS,
+            }
         )
 
 

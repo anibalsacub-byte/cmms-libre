@@ -3,20 +3,21 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from apps.accounts.permissions import SoloAdministracionEscribe, SoloAdministracionEscribeAdminElimina
+from apps.companies.auditoria_mixins import AuditoriaMixin
 from apps.companies.mixins import EmpresaScopedMixin
 from apps.inventory.models import Almacen, StockAlmacen
 from .models import OrdenCompra, Proveedor, SolicitudMaterial
 from .serializers import OrdenCompraSerializer, ProveedorSerializer, SolicitudMaterialSerializer
 
 
-class ProveedorViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
+class ProveedorViewSet(AuditoriaMixin, EmpresaScopedMixin, viewsets.ModelViewSet):
     queryset = Proveedor.objects.all()
     serializer_class = ProveedorSerializer
     permission_classes = [SoloAdministracionEscribeAdminElimina]
     search_fields = ["nombre", "contacto"]
 
 
-class OrdenCompraViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
+class OrdenCompraViewSet(AuditoriaMixin, EmpresaScopedMixin, viewsets.ModelViewSet):
     """Solicitada -> aprobada -> en tránsito -> recibida (o cancelada). Al
     marcarla como recibida se suma el stock en el almacén de destino y se
     avisa a las solicitudes de material que la originaron."""

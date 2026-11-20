@@ -17,6 +17,7 @@ const links = [
   { to: '/produccion', label: 'Producción / OEE', gestion: true, soloAdmin: false },
   { to: '/reportes', label: 'Reportes', gestion: false, soloAdmin: false },
   { to: '/tecnicos', label: 'Técnicos', gestion: true, soloAdmin: false },
+  { to: '/gobierno-datos', label: 'Calidad y auditoría', gestion: false, soloAdmin: true },
   { to: '/configuracion', label: 'Configuración', gestion: false, soloAdmin: true },
 ]
 

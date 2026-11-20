@@ -8,6 +8,7 @@ from apps.accounts.permissions import (
     SoloAdministracionEscribeAdminElimina,
     SoloSuperusuarioEscribe,
 )
+from apps.companies.auditoria_mixins import AuditoriaMixin
 from apps.companies.csv_mixins import CsvImportExportMixin
 from apps.companies.mixins import EmpresaScopedMixin
 from .models import Almacen, GrupoMaterial, Material, StockAlmacen, MovimientoStock, TrasladoAlmacen
@@ -34,7 +35,7 @@ class GrupoMaterialViewSet(viewsets.ModelViewSet):
     permission_classes = [SoloSuperusuarioEscribe]
 
 
-class MaterialViewSet(CsvImportExportMixin, EmpresaScopedMixin, viewsets.ModelViewSet):
+class MaterialViewSet(AuditoriaMixin, CsvImportExportMixin, EmpresaScopedMixin, viewsets.ModelViewSet):
     queryset = Material.objects.all().prefetch_related("stocks")
     serializer_class = MaterialSerializer
     permission_classes = [SoloAdministracionEscribeAdminElimina]

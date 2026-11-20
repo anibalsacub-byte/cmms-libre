@@ -7,6 +7,7 @@ from .views import (
     ConfiguracionEmpresaView,
     ExportarEmpresaView,
     ImportarEmpresaView,
+    MatrizPermisosView,
     ReiniciarInstalacionView,
     RegistrarEmpresaView,
     UsuarioViewSet,
@@ -32,4 +33,5 @@ urlpatterns = [
     ),
     path("exportar-empresa/", ExportarEmpresaView.as_view(), name="exportar-empresa"),
     path("importar-empresa/", ImportarEmpresaView.as_view(), name="importar-empresa"),
+    path("matriz-permisos/", MatrizPermisosView.as_view(), name="matriz-permisos"),
 ] + router.urls

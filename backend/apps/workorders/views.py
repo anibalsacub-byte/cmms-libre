@@ -1,7 +1,7 @@
 import csv
 from datetime import datetime, timedelta
 
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.http import StreamingHttpResponse
 from django.utils import timezone
 from rest_framework import viewsets, status
@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.accounts.permissions import TecnicoEscribeAdministracionGestiona
 from apps.assets.models import Activo
+from apps.companies.auditoria_mixins import AuditoriaMixin
 from apps.companies.csv_mixins import CsvImportExportMixin
 from apps.companies.mixins import EmpresaScopedMixin
 from apps.hr.models import Tecnico
@@ -54,11 +55,26 @@ def _falta_clasificacion_falla(orden):
     return any(getattr(orden, f"{campo}_id") is None for campo in obligatorios)
 
 
-class OrdenTrabajoViewSet(CsvImportExportMixin, EmpresaScopedMixin, viewsets.ModelViewSet):
+class OrdenTrabajoViewSet(AuditoriaMixin, CsvImportExportMixin, EmpresaScopedMixin, viewsets.ModelViewSet):
     queryset = OrdenTrabajo.objects.all().select_related("activo", "tecnico_principal", "aviso")
     permission_classes = [TecnicoEscribeAdministracionGestiona]
     filterset_fields = ["estado", "tipo", "prioridad", "activo", "tecnico_principal"]
     search_fields = ["numero", "descripcion"]
+
+    def get_queryset(self):
+        """P1-10: un técnico solo ve las OT donde es responsable o tiene
+        horas asignadas; el resto de roles ve todas las de su empresa."""
+        qs = super().get_queryset()
+        perfil = getattr(self.request.user, "perfil", None)
+        if perfil and perfil.rol == "TECNICO":
+            if perfil.tecnico_id:
+                qs = qs.filter(
+                    Q(tecnico_principal_id=perfil.tecnico_id)
+                    | Q(asignaciones__tecnico_id=perfil.tecnico_id)
+                ).distinct()
+            else:
+                qs = qs.none()
+        return qs
 
     campos_csv = [
         "activo_codigo",
@@ -124,6 +140,9 @@ class OrdenTrabajoViewSet(CsvImportExportMixin, EmpresaScopedMixin, viewsets.Mod
             usuario=self.request.data.get("usuario", ""),
             evento="OT creada",
         )
+        self._registrar_auditoria(
+            "CREAR", "workorders.ordentrabajo", orden.pk, str(orden), orden.empresa
+        )
 
     @action(detail=True, methods=["post"], url_path="cambiar-estado")
     def cambiar_estado(self, request, pk=None):
@@ -159,6 +178,10 @@ class OrdenTrabajoViewSet(CsvImportExportMixin, EmpresaScopedMixin, viewsets.Mod
             evento=f"Estado: {estado_anterior} -> {nuevo_estado}",
             detalle=request.data.get("comentario", ""),
         )
+        self._registrar_auditoria(
+            "EDITAR", "workorders.ordentrabajo", orden.pk,
+            f"{orden} (estado: {estado_anterior} -> {nuevo_estado})", orden.empresa,
+        )
         return Response(OrdenTrabajoSerializer(orden).data)
 
     @action(detail=True, methods=["post"])
@@ -189,6 +212,9 @@ class OrdenTrabajoViewSet(CsvImportExportMixin, EmpresaScopedMixin, viewsets.Mod
             usuario=request.data.get("usuario", ""),
             evento="OT cerrada",
             detalle=request.data.get("comentario", ""),
+        )
+        self._registrar_auditoria(
+            "EDITAR", "workorders.ordentrabajo", orden.pk, f"{orden} (cerrada)", orden.empresa
         )
         return Response(OrdenTrabajoSerializer(orden).data)
 

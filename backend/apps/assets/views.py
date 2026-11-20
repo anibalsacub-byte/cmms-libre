@@ -1,5 +1,6 @@
 from rest_framework import viewsets
 from apps.accounts.permissions import SoloAdministracionEscribe, SoloAdministracionEscribeAdminElimina
+from apps.companies.auditoria_mixins import AuditoriaMixin
 from apps.companies.csv_mixins import CsvImportExportMixin
 from apps.companies.mixins import EmpresaScopedMixin
 from .models import UbicacionTecnica, ClaseActivo, Activo
@@ -21,7 +22,7 @@ class ClaseActivoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
     search_fields = ["codigo", "nombre"]
 
 
-class ActivoViewSet(CsvImportExportMixin, EmpresaScopedMixin, viewsets.ModelViewSet):
+class ActivoViewSet(AuditoriaMixin, CsvImportExportMixin, EmpresaScopedMixin, viewsets.ModelViewSet):
     queryset = Activo.objects.all().select_related("clase", "ubicacion_tecnica")
     serializer_class = ActivoSerializer
     permission_classes = [SoloAdministracionEscribeAdminElimina]

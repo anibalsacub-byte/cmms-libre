@@ -18,6 +18,7 @@ import PreventivePlans from './pages/PreventivePlans'
 import Scheduling from './pages/Scheduling'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
+import Governance from './pages/Governance'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuth()
@@ -78,6 +79,14 @@ function AppRoutes() {
           element={
             <RequiereAdmin>
               <Settings />
+            </RequiereAdmin>
+          }
+        />
+        <Route
+          path="gobierno-datos"
+          element={
+            <RequiereAdmin>
+              <Governance />
             </RequiereAdmin>
           }
         />

@@ -4,6 +4,7 @@ from apps.accounts.permissions import (
     SoloAdministracionEscribeAdminElimina,
     SoloSuperusuarioEscribe,
 )
+from apps.companies.auditoria_mixins import AuditoriaMixin
 from apps.companies.csv_mixins import CsvImportExportMixin, parse_bool_csv
 from apps.companies.mixins import EmpresaScopedMixin
 from .models import Ausencia, Especialidad, Habilidad, Tecnico
@@ -27,7 +28,7 @@ class HabilidadViewSet(viewsets.ModelViewSet):
     permission_classes = [SoloSuperusuarioEscribe]
 
 
-class TecnicoViewSet(CsvImportExportMixin, EmpresaScopedMixin, viewsets.ModelViewSet):
+class TecnicoViewSet(AuditoriaMixin, CsvImportExportMixin, EmpresaScopedMixin, viewsets.ModelViewSet):
     queryset = Tecnico.objects.all().select_related("especialidad").prefetch_related("habilidades")
     serializer_class = TecnicoSerializer
     permission_classes = [SoloAdministracionEscribeAdminElimina]

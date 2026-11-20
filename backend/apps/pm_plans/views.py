@@ -2,6 +2,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from apps.accounts.permissions import SoloAdministracionEscribeAdminElimina
+from apps.companies.auditoria_mixins import AuditoriaMixin
 from apps.companies.mixins import EmpresaScopedMixin
 from apps.workorders.serializers import OrdenTrabajoListSerializer
 from .models import PlanPreventivo
@@ -9,7 +10,7 @@ from .serializers import PlanPreventivoSerializer
 from .services import generar_ordenes_pendientes
 
 
-class PlanPreventivoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
+class PlanPreventivoViewSet(AuditoriaMixin, EmpresaScopedMixin, viewsets.ModelViewSet):
     queryset = PlanPreventivo.objects.all().select_related("activo")
     serializer_class = PlanPreventivoSerializer
     permission_classes = [SoloAdministracionEscribeAdminElimina]

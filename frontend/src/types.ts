@@ -126,6 +126,49 @@ export type OrdenTrabajoDetalle = OrdenTrabajo & {
   bitacora: { id: number; fecha: string; usuario: string; evento: string; detalle: string }[]
 }
 
+export type InformeCalidadDatos = {
+  patron_codigo: string
+  duplicados_por_nombre: {
+    activos: { nombre: string; codigos: string[] }[]
+    materiales: { nombre: string; codigos: string[] }[]
+  }
+  campos_obligatorios_vacios: {
+    activos_sin_ubicacion: string[]
+    ot_sin_activo: string[]
+    materiales_sin_costo: string[]
+    activos_sin_ficha_tecnica: string[]
+    tecnicos_sin_tarifa: string[]
+  }
+  codigos_formato_invalido: {
+    activos: string[]
+    materiales: string[]
+    tecnicos: string[]
+    clases_activo: string[]
+    ubicaciones_tecnicas: string[]
+  }
+  totales: {
+    activos: number
+    materiales: number
+    tecnicos: number
+    ordenes_trabajo: number
+  }
+}
+
+export type RegistroAuditoria = {
+  id: number
+  usuario: string
+  fecha: string
+  accion: 'CREAR' | 'EDITAR' | 'ELIMINAR'
+  modelo: string
+  objeto_id: number | null
+  objeto_str: string
+}
+
+export type MatrizPermisos = {
+  roles: string[]
+  modulos: { modulo: string; lectura: string; escribir: string; eliminar: string }[]
+}
+
 export type Ausencia = {
   id: number
   tecnico: number
