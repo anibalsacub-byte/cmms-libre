@@ -213,6 +213,17 @@ export type CausaFalla = {
   categoria: string
 }
 
+export type Proveedor = {
+  id: number
+  nombre: string
+  contacto: string
+  telefono: string
+  email: string
+  lead_time_dias: number
+  condiciones: string
+  activo: boolean
+}
+
 export type OrdenCompra = {
   id: number
   numero: string
@@ -222,10 +233,13 @@ export type OrdenCompra = {
   tipo: 'NORMAL' | 'EMERGENCIA'
   cantidad: string
   proveedor: string
+  proveedor_registrado: number | null
+  proveedor_registrado_nombre: string | null
   costo_estimado: string
   tiempo_entrega_dias: number
-  estado: string
+  estado: 'SOLICITADA' | 'APROBADA' | 'EN_TRANSITO' | 'RECIBIDA' | 'CANCELADA'
   almacen_destino: number
+  almacen_destino_codigo: string
   fecha_solicitud: string
   fecha_recepcion: string | null
 }
@@ -240,7 +254,9 @@ export type SolicitudMaterial = {
   fuente: 'STOCK_LOCAL' | 'TRASLADO' | 'COMPRA_NORMAL' | 'COMPRA_EMERGENCIA'
   costo_estimado: string
   tiempo_estimado_horas: string
-  estado: string
+  estado: 'PENDIENTE' | 'EN_PROCESO' | 'DISPONIBLE' | 'CANCELADA'
+  orden_compra: number | null
+  orden_compra_numero: string | null
 }
 
 export type LineaProduccion = {

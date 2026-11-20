@@ -2,6 +2,36 @@ from django.db import models
 from apps.inventory.models import Material, Almacen
 
 
+class Proveedor(models.Model):
+    """Proveedor externo como entidad propia (antes era solo un nombre
+    suelto en cada orden de compra), para tener su contacto y condiciones
+    a mano al elegirlo."""
+
+    empresa = models.ForeignKey(
+        "companies.Empresa", null=True, blank=True, on_delete=models.CASCADE, related_name="proveedores"
+    )
+    nombre = models.CharField(max_length=150)
+    contacto = models.CharField(max_length=150, blank=True)
+    telefono = models.CharField(max_length=30, blank=True)
+    email = models.EmailField(blank=True)
+    lead_time_dias = models.PositiveIntegerField(
+        default=0, help_text="Tiempo de entrega típico de este proveedor."
+    )
+    condiciones = models.TextField(blank=True, help_text="Condiciones comerciales, forma de pago, etc.")
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Proveedor"
+        verbose_name_plural = "Proveedores"
+        ordering = ["nombre"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "nombre"], name="proveedor_empresa_nombre_unico")
+        ]
+
+    def __str__(self):
+        return self.nombre
+
+
 class OrdenCompra(models.Model):
     """Compra a proveedor externo, normal o de emergencia, asociada opcionalmente
     a la orden de trabajo que la originó."""
@@ -29,7 +59,13 @@ class OrdenCompra(models.Model):
     )
     tipo = models.CharField(max_length=15, choices=TIPO_CHOICES, default="NORMAL")
     cantidad = models.DecimalField(max_digits=12, decimal_places=2)
-    proveedor = models.CharField(max_length=150, blank=True)
+    proveedor = models.CharField(
+        max_length=150, blank=True,
+        help_text="Se completa solo si se elige un proveedor registrado; también se puede escribir a mano.",
+    )
+    proveedor_registrado = models.ForeignKey(
+        Proveedor, null=True, blank=True, on_delete=models.SET_NULL, related_name="ordenes_compra"
+    )
     costo_estimado = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     tiempo_entrega_dias = models.PositiveIntegerField(default=0)
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default="SOLICITADA")
