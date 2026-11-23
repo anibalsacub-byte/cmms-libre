@@ -64,13 +64,73 @@ def exportar_empresa(empresa):
     }
 
 
+_CLAVES_EMPRESA = {f"{app}.{modelo.lower()}" for app, modelo, _ in MODELOS_EMPRESA}
+
+
+def _clave_de(model_meta):
+    return f"{model_meta.app_label}.{model_meta.model_name}"
+
+
+def _resolver_fila(registro, campos_relacion, clave, pk_map, mapa_actual, empresa):
+    """Arma los kwargs de `Model.objects.create(...)` para una fila del
+    export, remapeando sus relaciones.
+
+    Devuelve `(kwargs, m2m_kwargs)`, o `None` si la fila depende de OTRA fila
+    de este mismo modelo (una auto-referencia, ej. `padre`) que todavía no
+    se creó en este lote — hay que reintentarla después, nunca inventarle
+    una FK con la PK vieja (podría ser la de otra empresa)."""
+
+    valores = dict(registro["fields"])
+    crear_kwargs = {}
+    m2m_kwargs = {}
+
+    for nombre, valor in valores.items():
+        campo = campos_relacion.get(nombre)
+        if campo is None:
+            crear_kwargs[nombre] = valor
+            continue
+
+        clave_relacionada = _clave_de(campo.related_model._meta)
+        mapa_destino = mapa_actual if clave_relacionada == clave else pk_map.get(clave_relacionada)
+
+        if campo.many_to_many:
+            m2m_kwargs[nombre] = [
+                (mapa_destino or {}).get(v, v) for v in (valor or [])
+            ]
+            continue
+
+        if nombre == "empresa":
+            crear_kwargs["empresa_id"] = empresa.pk
+            continue
+
+        if valor is None or clave_relacionada not in _CLAVES_EMPRESA:
+            # Vacío, o apunta a un catálogo GLOBAL (no gestionado acá): se
+            # deja tal cual, se asume que existe igual en este servidor.
+            crear_kwargs[f"{nombre}_id"] = valor
+            continue
+
+        if mapa_destino is None or valor not in mapa_destino:
+            return None  # depende de una fila de este mismo modelo, aún no creada
+
+        crear_kwargs[f"{nombre}_id"] = mapa_destino[valor]
+
+    return crear_kwargs, m2m_kwargs
+
+
 def importar_empresa(empresa, payload):
     """Restaura un export de `exportar_empresa` DENTRO de `empresa`, que debe
     estar vacía (se verifica en la vista antes de llamar esto). Cada registro
     se crea con una PK nueva (nunca reutiliza las del export, para no chocar
     con otras empresas) y las relaciones se remapean con `pk_map`; las que
     apuntan a catálogos globales (no listados en MODELOS_EMPRESA) se dejan
-    tal cual, asumiendo que ese catálogo ya existe en este servidor."""
+    tal cual, asumiendo que ese catálogo ya existe en este servidor.
+
+    Las auto-referencias (ej. `UbicacionTecnica.padre`, `Activo.padre`) se
+    resuelven en varias pasadas dentro del propio modelo: una fila cuyo
+    padre todavía no se creó se reintenta después de que el resto avance. Si
+    al final queda una sin poder resolverse, esa relación se deja en null —
+    nunca se usa la PK original del export, que en esta base podría
+    pertenecer a una fila de OTRA empresa."""
 
     datos = payload.get("datos") or {}
     pk_map = {}  # "app.model" -> {pk_original: pk_nueva}
@@ -78,7 +138,7 @@ def importar_empresa(empresa, payload):
     for app_label, model_name, _lookup in MODELOS_EMPRESA:
         Model = django_apps.get_model(app_label, model_name)
         clave = f"{app_label}.{model_name.lower()}"
-        registros = datos.get(clave, [])
+        pendientes = list(datos.get(clave, []))
 
         campos_relacion = {
             f.name: f
@@ -91,53 +151,56 @@ def importar_empresa(empresa, payload):
             if getattr(f, "auto_now_add", False) or getattr(f, "auto_now", False)
         ]
 
-        mapa_nuevo = {}
-        for registro in registros:
-            pk_original = registro["pk"]
-            valores = dict(registro["fields"])
-            crear_kwargs = {}
-            m2m_kwargs = {}
+        mapa_actual = pk_map.setdefault(clave, {})
 
-            for nombre, valor in valores.items():
-                campo = campos_relacion.get(nombre)
-                if campo is None:
-                    crear_kwargs[nombre] = valor
-                    continue
-
-                relacionado = campo.related_model
-                clave_relacionada = (
-                    f"{relacionado._meta.app_label}.{relacionado._meta.model_name}"
-                )
-
-                if campo.many_to_many:
-                    mapa = pk_map.get(clave_relacionada, {})
-                    m2m_kwargs[nombre] = [mapa.get(v, v) for v in (valor or [])]
-                    continue
-
-                if nombre == "empresa":
-                    crear_kwargs["empresa_id"] = empresa.pk
-                    continue
-
-                mapa = pk_map.get(clave_relacionada)
-                if mapa is not None and valor is not None:
-                    valor = mapa.get(valor, valor)
-                crear_kwargs[f"{nombre}_id"] = valor
-
-            objeto = Model.objects.create(**crear_kwargs)
-
+        def _crear(registro, kwargs, m2m_kwargs):
+            objeto = Model.objects.create(**kwargs)
             for nombre, ids in m2m_kwargs.items():
                 getattr(objeto, nombre).set(ids)
-
             if campos_auto:
-                # auto_now/auto_now_add ignoran el valor pasado a create(); se
-                # restaura el original con un UPDATE que no dispara esa lógica.
+                # auto_now/auto_now_add ignoran el valor pasado a create();
+                # se restaura con un UPDATE que no dispara esa lógica.
+                valores = registro["fields"]
                 Model.objects.filter(pk=objeto.pk).update(
                     **{c: valores[c] for c in campos_auto if c in valores}
                 )
+            mapa_actual[registro["pk"]] = objeto.pk
 
-            mapa_nuevo[pk_original] = objeto.pk
+        progreso = True
+        while pendientes and progreso:
+            progreso = False
+            siguientes = []
+            for registro in pendientes:
+                resuelto = _resolver_fila(registro, campos_relacion, clave, pk_map, mapa_actual, empresa)
+                if resuelto is None:
+                    siguientes.append(registro)
+                    continue
+                _crear(registro, *resuelto)
+                progreso = True
+            pendientes = siguientes
 
-        pk_map[f"{app_label}.{model_name.lower()}"] = mapa_nuevo
+        for registro in pendientes:
+            # No se resolvió ni con varias pasadas (ciclo de auto-referencia,
+            # o el export no traía la fila de la que depende): se crea
+            # igual, dejando en null cada relación que no se pudo resolver
+            # — nunca se usa su PK original, que en esta base podría
+            # pertenecer a una fila de otra empresa.
+            valores = dict(registro["fields"])
+            for nombre, campo in campos_relacion.items():
+                if campo.many_to_many or nombre == "empresa" or nombre not in valores:
+                    continue
+                valor = valores[nombre]
+                if valor is None:
+                    continue
+                clave_relacionada = _clave_de(campo.related_model._meta)
+                if clave_relacionada not in _CLAVES_EMPRESA:
+                    continue
+                mapa_destino = mapa_actual if clave_relacionada == clave else pk_map.get(clave_relacionada)
+                if mapa_destino is None or valor not in mapa_destino:
+                    valores[nombre] = None
+            registro_saneado = {**registro, "fields": valores}
+            resuelto = _resolver_fila(registro_saneado, campos_relacion, clave, pk_map, mapa_actual, empresa)
+            _crear(registro_saneado, *resuelto)
 
 
 def borrar_datos_empresa(empresa):
