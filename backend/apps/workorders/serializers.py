@@ -27,6 +27,7 @@ class AsignacionTecnicoSerializer(serializers.ModelSerializer):
 
 class MaterialUtilizadoSerializer(serializers.ModelSerializer):
     material_codigo = serializers.CharField(source="material.codigo", read_only=True)
+    almacen_codigo = serializers.CharField(source="almacen.codigo", read_only=True, default=None)
     subtotal = serializers.SerializerMethodField()
 
     class Meta:

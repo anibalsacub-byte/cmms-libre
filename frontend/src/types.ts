@@ -117,6 +117,8 @@ export type OrdenTrabajoDetalle = OrdenTrabajo & {
     id: number
     material: number
     material_codigo: string
+    almacen: number | null
+    almacen_codigo: string | null
     cantidad: string
     costo_unitario: string
     subtotal: number

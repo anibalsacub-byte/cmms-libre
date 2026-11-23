@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api/client'
 import type {
   Adjunto,
+  Almacen,
   CausaFalla,
   Material,
   MecanismoFalla,
@@ -39,8 +40,12 @@ type TabKey = (typeof TABS)[number]['key']
 
 function detalleError(err: unknown, fallback: string) {
   if (typeof err === 'object' && err !== null && 'response' in err) {
-    const detail = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
-    if (typeof detail === 'string') return detail
+    const data = (err as { response?: { data?: Record<string, unknown> } }).response?.data
+    if (!data) return fallback
+    if (typeof data.detail === 'string') return data.detail
+    const primerCampo = Object.values(data)[0]
+    if (Array.isArray(primerCampo) && typeof primerCampo[0] === 'string') return primerCampo[0]
+    if (typeof primerCampo === 'string') return primerCampo
   }
   return fallback
 }
@@ -57,10 +62,16 @@ export default function WorkOrders() {
 
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([])
   const [materiales, setMateriales] = useState<Material[]>([])
+  const [almacenes, setAlmacenes] = useState<Almacen[]>([])
   const otAbierta = seleccionada ? !['CERRADA', 'CANCELADA'].includes(seleccionada.estado) : false
 
   const [formHoras, setFormHoras] = useState({ tecnico: '', fecha: '', horas_reales: '' })
-  const [formMaterial, setFormMaterial] = useState({ material: '', cantidad: '', fuente: 'STOCK_LOCAL' })
+  const [formMaterial, setFormMaterial] = useState({
+    material: '',
+    cantidad: '',
+    fuente: 'STOCK_LOCAL',
+    almacen: '',
+  })
 
   const [mostrarCierre, setMostrarCierre] = useState(false)
   const [cierre, setCierre] = useState({
@@ -109,6 +120,7 @@ export default function WorkOrders() {
   useEffect(() => {
     api.get<Paginated<Tecnico>>('/hr/tecnicos/').then((res) => setTecnicos(res.data.results))
     api.get<Paginated<Material>>('/inventory/materiales/').then((res) => setMateriales(res.data.results))
+    api.get<Paginated<Almacen>>('/inventory/almacenes/').then((res) => setAlmacenes(res.data.results))
     api.get<Paginated<Sintoma>>('/failures/sintomas/').then((res) => setSintomas(res.data.results))
     api.get<Paginated<ModoFalla>>('/failures/modos-falla/').then((res) => setModos(res.data.results))
     api
@@ -217,15 +229,20 @@ export default function WorkOrders() {
     if (!seleccionada || !formMaterial.material || !formMaterial.cantidad) return
     const mat = materiales.find((m) => m.id === Number(formMaterial.material))
     if (!mat) return
+    if (formMaterial.fuente === 'STOCK_LOCAL' && !formMaterial.almacen) {
+      window.alert('Indica de qué almacén se descuenta este material.')
+      return
+    }
     try {
       await api.post('/workorders/materiales-utilizados/', {
         orden_trabajo: seleccionada.id,
         material: mat.id,
+        almacen: formMaterial.fuente === 'STOCK_LOCAL' ? Number(formMaterial.almacen) : null,
         cantidad: formMaterial.cantidad,
         costo_unitario: mat.costo_unitario,
         fuente: formMaterial.fuente,
       })
-      setFormMaterial({ material: '', cantidad: '', fuente: 'STOCK_LOCAL' })
+      setFormMaterial({ material: '', cantidad: '', fuente: 'STOCK_LOCAL', almacen: '' })
       recargarSeleccionada()
     } catch (err) {
       window.alert(detalleError(err, 'No se pudo registrar el material.'))
@@ -233,8 +250,12 @@ export default function WorkOrders() {
   }
 
   async function quitarMaterial(materialUtilizadoId: number) {
-    await api.delete(`/workorders/materiales-utilizados/${materialUtilizadoId}/`)
-    recargarSeleccionada()
+    try {
+      await api.delete(`/workorders/materiales-utilizados/${materialUtilizadoId}/`)
+      recargarSeleccionada()
+    } catch (err) {
+      window.alert(detalleError(err, 'No se pudo quitar el material.'))
+    }
   }
 
   async function subirAdjunto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -687,6 +708,11 @@ export default function WorkOrders() {
                               </td>
                               <td className="border border-slate-300 px-2 py-1 text-slate-500">
                                 {m.fuente}
+                                {m.almacen_codigo && (
+                                  <span className="block text-xs text-slate-400">
+                                    {m.almacen_codigo}
+                                  </span>
+                                )}
                               </td>
                               {puedeOperar && otAbierta && (
                                 <td className="border border-slate-300 px-2 py-1 text-center">
@@ -756,15 +782,37 @@ export default function WorkOrders() {
                                   <option value="COMPRA_NORMAL">Compra normal</option>
                                   <option value="COMPRA_EMERGENCIA">Compra emergencia</option>
                                 </select>
+                                {formMaterial.fuente === 'STOCK_LOCAL' && (
+                                  <select
+                                    value={formMaterial.almacen}
+                                    onChange={(e) =>
+                                      setFormMaterial((f) => ({ ...f, almacen: e.target.value }))
+                                    }
+                                    className="w-full mt-1 rounded border border-slate-300 text-xs px-1 py-1"
+                                  >
+                                    <option value="">Almacén...</option>
+                                    {almacenes.map((a) => (
+                                      <option key={a.id} value={a.id}>
+                                        {a.codigo}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
                               </td>
                               <td className="border border-slate-300 px-2 py-1 text-center">
                                 <button
                                   onClick={registrarMaterial}
-                                  disabled={!formMaterial.material || !formMaterial.cantidad}
+                                  disabled={
+                                    !formMaterial.material ||
+                                    !formMaterial.cantidad ||
+                                    (formMaterial.fuente === 'STOCK_LOCAL' && !formMaterial.almacen)
+                                  }
                                   title={
                                     !formMaterial.material || !formMaterial.cantidad
                                       ? 'Selecciona un material y escribe la cantidad'
-                                      : undefined
+                                      : formMaterial.fuente === 'STOCK_LOCAL' && !formMaterial.almacen
+                                        ? 'Selecciona de qué almacén se descuenta'
+                                        : undefined
                                   }
                                   className="text-emerald-700 font-medium hover:underline disabled:text-slate-300 disabled:no-underline disabled:cursor-not-allowed"
                                 >

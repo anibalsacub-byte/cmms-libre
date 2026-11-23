@@ -6,7 +6,7 @@ from django.http import StreamingHttpResponse
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -16,6 +16,7 @@ from apps.companies.auditoria_mixins import AuditoriaMixin
 from apps.companies.csv_mixins import CsvImportExportMixin
 from apps.companies.mixins import EmpresaScopedMixin
 from apps.hr.models import Tecnico
+from apps.inventory.services import registrar_movimiento
 from .models import (
     OrdenTrabajo,
     TareaOT,
@@ -308,14 +309,22 @@ class AsignacionTecnicoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
 class MaterialUtilizadoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
     """Los materiales se pueden agregar y quitar libremente (como los
     componentes de una orden SAP) mientras la OT siga abierta; una vez
-    cerrada o cancelada, quedan fijos para no alterar el costo histórico."""
+    cerrada o cancelada, quedan fijos para no alterar el costo histórico.
 
-    queryset = MaterialUtilizado.objects.all().select_related("material")
+    Cuando la fuente es stock local, registrar el consumo descuenta de
+    inmediato el almacén indicado (con su propio MovimientoStock de salida,
+    visible en Inventario) — antes había que ir a Movimientos a registrar
+    esa salida aparte. Las demás fuentes (traslado, compra normal o de
+    emergencia) representan material que todavía no está físicamente
+    disponible, así que no tocan stock aquí: ver `SolicitudMaterial`."""
+
+    queryset = MaterialUtilizado.objects.all().select_related("material", "almacen")
     serializer_class = MaterialUtilizadoSerializer
     permission_classes = [TecnicoEscribeAdministracionGestiona]
     filterset_fields = ["orden_trabajo", "material", "fuente"]
     empresa_lookup = "orden_trabajo__empresa"
     parent_field = "orden_trabajo"
+    http_method_names = ["get", "post", "delete", "head", "options"]
 
     def _verificar_ot_abierta(self, orden_trabajo):
         if orden_trabajo.estado in ("CERRADA", "CANCELADA"):
@@ -325,10 +334,43 @@ class MaterialUtilizadoViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
         orden = serializer.validated_data.get("orden_trabajo")
         if orden is not None:
             self._verificar_ot_abierta(orden)
+
+        fuente = serializer.validated_data.get("fuente") or "STOCK_LOCAL"
+        almacen = serializer.validated_data.get("almacen")
+        if fuente == "STOCK_LOCAL":
+            if almacen is None:
+                raise ValidationError(
+                    {"almacen": "Indica de qué almacén se descuenta este material."}
+                )
+            if getattr(almacen, "empresa_id", None) != getattr(self._empresa(), "id", None):
+                raise PermissionDenied("Ese almacén pertenece a otra empresa.")
+
         super().perform_create(serializer)
+        consumo = serializer.instance
+
+        if fuente == "STOCK_LOCAL":
+            try:
+                registrar_movimiento(
+                    consumo.material,
+                    almacen,
+                    "SALIDA",
+                    consumo.cantidad,
+                    referencia=f"Consumo en {consumo.orden_trabajo.numero}",
+                )
+            except ValidationError:
+                consumo.delete()
+                raise
 
     def perform_destroy(self, instance):
         self._verificar_ot_abierta(instance.orden_trabajo)
+        if instance.fuente == "STOCK_LOCAL" and instance.almacen_id:
+            registrar_movimiento(
+                instance.material,
+                instance.almacen,
+                "ENTRADA",
+                instance.cantidad,
+                referencia=f"Reversión de consumo en {instance.orden_trabajo.numero}",
+            )
         instance.delete()
 
 

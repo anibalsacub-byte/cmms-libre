@@ -12,6 +12,7 @@ from apps.companies.auditoria_mixins import AuditoriaMixin
 from apps.companies.csv_mixins import CsvImportExportMixin
 from apps.companies.mixins import EmpresaScopedMixin
 from .models import Almacen, GrupoMaterial, Material, StockAlmacen, MovimientoStock, TrasladoAlmacen
+from .services import ajustar_stock
 from .serializers import (
     AlmacenSerializer,
     GrupoMaterialSerializer,
@@ -112,7 +113,6 @@ class MovimientoStockViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
         super().perform_create(serializer)
         movimiento = serializer.instance
 
-        stock, _ = StockAlmacen.objects.get_or_create(material=material, almacen=almacen)
         if movimiento.tipo == "ENTRADA":
             delta = movimiento.cantidad
         elif movimiento.tipo == "SALIDA":
@@ -120,14 +120,11 @@ class MovimientoStockViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
         else:
             delta = movimiento.cantidad  # AJUSTE: la cantidad ES el delta (puede ser negativo)
 
-        nueva_cantidad = stock.cantidad + delta
-        if nueva_cantidad < 0:
+        try:
+            ajustar_stock(material, almacen, delta)
+        except ValidationError:
             movimiento.delete()
-            raise ValidationError(
-                {"cantidad": "No hay stock suficiente en ese almacén para este movimiento."}
-            )
-        stock.cantidad = nueva_cantidad
-        stock.save(update_fields=["cantidad"])
+            raise
 
 
 class TrasladoAlmacenViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):

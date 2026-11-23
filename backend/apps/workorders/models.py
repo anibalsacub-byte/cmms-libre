@@ -2,7 +2,7 @@ from django.db import models
 from apps.assets.models import Activo
 from apps.notices.models import Aviso
 from apps.hr.models import Tecnico
-from apps.inventory.models import Material
+from apps.inventory.models import Almacen, Material
 from apps.failures.models import Sintoma, ModoFalla, MecanismoFalla, CausaFalla
 
 
@@ -154,6 +154,10 @@ class MaterialUtilizado(models.Model):
         OrdenTrabajo, on_delete=models.CASCADE, related_name="materiales"
     )
     material = models.ForeignKey(Material, on_delete=models.PROTECT, related_name="usos_en_ot")
+    almacen = models.ForeignKey(
+        Almacen, null=True, blank=True, on_delete=models.PROTECT, related_name="materiales_consumidos",
+        help_text="Obligatorio cuando la fuente es stock local: de ahí se descuenta la cantidad.",
+    )
     cantidad = models.DecimalField(max_digits=10, decimal_places=2)
     costo_unitario = models.DecimalField(
         max_digits=12, decimal_places=2,
