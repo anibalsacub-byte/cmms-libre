@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { api } from '../api/client'
+import { api, obtenerTodos } from '../api/client'
 import type {
   Adjunto,
   Almacen,
@@ -119,8 +119,8 @@ export default function WorkOrders() {
   useEffect(load, [])
   useEffect(() => {
     api.get<Paginated<Tecnico>>('/hr/tecnicos/').then((res) => setTecnicos(res.data.results))
-    api.get<Paginated<Material>>('/inventory/materiales/').then((res) => setMateriales(res.data.results))
-    api.get<Paginated<Almacen>>('/inventory/almacenes/').then((res) => setAlmacenes(res.data.results))
+    obtenerTodos<Material>('/inventory/materiales/').then(setMateriales)
+    obtenerTodos<Almacen>('/inventory/almacenes/').then(setAlmacenes)
     api.get<Paginated<Sintoma>>('/failures/sintomas/').then((res) => setSintomas(res.data.results))
     api.get<Paginated<ModoFalla>>('/failures/modos-falla/').then((res) => setModos(res.data.results))
     api

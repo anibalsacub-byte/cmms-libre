@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { api } from '../api/client'
+import { api, obtenerTodos } from '../api/client'
 import type {
   Almacen,
   ClaseMaterial,
   Material,
   MovimientoStock,
-  Paginated,
   StockAlmacen,
   TrasladoAlmacen,
 } from '../types'
@@ -99,32 +98,30 @@ export default function Inventory() {
   const [formUmbral, setFormUmbral] = useState({ stock_minimo: '', stock_maximo: '', ubicacion_en_almacen: '' })
 
   function cargarMateriales() {
-    api.get<Paginated<Material>>('/inventory/materiales/').then((res) => setMateriales(res.data.results))
+    obtenerTodos<Material>('/inventory/materiales/').then(setMateriales)
   }
   function cargarAlmacenes() {
-    api.get<Paginated<Almacen>>('/inventory/almacenes/').then((res) => setAlmacenes(res.data.results))
+    obtenerTodos<Almacen>('/inventory/almacenes/').then(setAlmacenes)
   }
   function cargarStock() {
-    api.get<Paginated<StockAlmacen>>('/inventory/stock/').then((res) => setStock(res.data.results))
+    obtenerTodos<StockAlmacen>('/inventory/stock/').then(setStock)
   }
   function cargarMovimientos() {
-    api.get<Paginated<MovimientoStock>>('/inventory/movimientos/').then((res) => setMovimientos(res.data.results))
+    obtenerTodos<MovimientoStock>('/inventory/movimientos/').then(setMovimientos)
   }
   function cargarTraslados() {
-    api.get<Paginated<TrasladoAlmacen>>('/inventory/traslados/').then((res) => setTraslados(res.data.results))
+    obtenerTodos<TrasladoAlmacen>('/inventory/traslados/').then(setTraslados)
   }
 
   function cargarClasesMaterial() {
-    api
-      .get<Paginated<ClaseMaterial>>('/inventory/clases-material/')
-      .then((res) => setClasesMaterial(res.data.results))
+    obtenerTodos<ClaseMaterial>('/inventory/clases-material/').then(setClasesMaterial)
   }
 
   useEffect(() => {
     cargarMateriales()
     cargarAlmacenes()
     cargarStock()
-    api.get<Paginated<GrupoMaterial>>('/inventory/grupos-material/').then((res) => setGrupos(res.data.results))
+    obtenerTodos<GrupoMaterial>('/inventory/grupos-material/').then(setGrupos)
     cargarClasesMaterial()
     cargarMovimientos()
     cargarTraslados()

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import type { Paginated } from '../types'
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000/api'
 
@@ -13,6 +14,21 @@ api.interceptors.request.use((config) => {
   }
   return config
 })
+
+/** La API pagina los listados (PAGE_SIZE en el backend); las pantallas que
+ * necesitan el listado completo (para desplegables o para no perder filas
+ * cuyo relacionado quedó en otra página) usan esto en vez de leer solo
+ * res.data.results de la primera página. */
+export async function obtenerTodos<T>(url: string): Promise<T[]> {
+  const resultados: T[] = []
+  let siguiente: string | null = url
+  while (siguiente) {
+    const res: { data: Paginated<T> } = await api.get<Paginated<T>>(siguiente)
+    resultados.push(...res.data.results)
+    siguiente = res.data.next
+  }
+  return resultados
+}
 
 type ReportadorDeErrores = (mensaje: string) => void
 let reportarError: ReportadorDeErrores | null = null

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { api } from '../api/client'
+import { obtenerTodos } from '../api/client'
 import ImportarExportarCsv from '../components/ImportarExportarCsv'
-import type { EquipoMaterial, Paginated } from '../types'
+import type { EquipoMaterial } from '../types'
 import { useAuth } from '../context/AuthContext'
 
 export default function Bom() {
@@ -9,9 +9,7 @@ export default function Bom() {
   const [repuestos, setRepuestos] = useState<EquipoMaterial[]>([])
 
   function cargarRepuestos() {
-    api
-      .get<Paginated<EquipoMaterial>>('/bom/repuestos-activo/')
-      .then((res) => setRepuestos(res.data.results))
+    obtenerTodos<EquipoMaterial>('/bom/repuestos-activo/').then(setRepuestos)
   }
 
   useEffect(cargarRepuestos, [])

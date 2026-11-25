@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { api } from '../api/client'
+import { api, obtenerTodos } from '../api/client'
 import type {
   Almacen,
   Material,
@@ -117,8 +117,8 @@ export default function Purchasing() {
     cargarSolicitudes()
     cargarProveedores()
     api.get<Paginated<OrdenTrabajo>>('/workorders/ordenes/').then((r) => setOrdenesTrabajo(r.data.results))
-    api.get<Paginated<Material>>('/inventory/materiales/').then((r) => setMateriales(r.data.results))
-    api.get<Paginated<Almacen>>('/inventory/almacenes/').then((r) => setAlmacenes(r.data.results))
+    obtenerTodos<Material>('/inventory/materiales/').then(setMateriales)
+    obtenerTodos<Almacen>('/inventory/almacenes/').then(setAlmacenes)
   }, [])
 
   const materialesPorId = useMemo(() => {
