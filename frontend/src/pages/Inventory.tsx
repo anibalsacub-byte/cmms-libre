@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api } from '../api/client'
 import type {
   Almacen,
+  ClaseMaterial,
   Material,
   MovimientoStock,
   Paginated,
@@ -70,6 +71,10 @@ export default function Inventory() {
   const [almacenes, setAlmacenes] = useState<Almacen[]>([])
   const [stock, setStock] = useState<StockAlmacen[]>([])
   const [grupos, setGrupos] = useState<GrupoMaterial[]>([])
+  const [clasesMaterial, setClasesMaterial] = useState<ClaseMaterial[]>([])
+  const [mostrarClases, setMostrarClases] = useState(false)
+  const [nuevaClase, setNuevaClase] = useState({ codigo: '', nombre: '' })
+  const [errorClase, setErrorClase] = useState<string | null>(null)
   const [movimientos, setMovimientos] = useState<MovimientoStock[]>([])
   const [traslados, setTraslados] = useState<TrasladoAlmacen[]>([])
 
@@ -109,11 +114,18 @@ export default function Inventory() {
     api.get<Paginated<TrasladoAlmacen>>('/inventory/traslados/').then((res) => setTraslados(res.data.results))
   }
 
+  function cargarClasesMaterial() {
+    api
+      .get<Paginated<ClaseMaterial>>('/inventory/clases-material/')
+      .then((res) => setClasesMaterial(res.data.results))
+  }
+
   useEffect(() => {
     cargarMateriales()
     cargarAlmacenes()
     cargarStock()
     api.get<Paginated<GrupoMaterial>>('/inventory/grupos-material/').then((res) => setGrupos(res.data.results))
+    cargarClasesMaterial()
     cargarMovimientos()
     cargarTraslados()
   }, [])
@@ -126,10 +138,6 @@ export default function Inventory() {
     return mapa
   }, [materiales])
 
-  const clases = useMemo(
-    () => Array.from(new Set(materiales.map((m) => m.clase).filter(Boolean))).sort(),
-    [materiales],
-  )
   const gruposEnUso = useMemo(() => {
     const mapa = new Map<number, string>()
     materiales.forEach((m) => mapa.set(m.grupo, m.grupo_nombre))
@@ -149,7 +157,7 @@ export default function Inventory() {
           }
         }
         if (filtros.almacen && String(s.almacen) !== filtros.almacen) return false
-        if (filtros.clase && material.clase !== filtros.clase) return false
+        if (filtros.clase && String(material.clase ?? '') !== filtros.clase) return false
         if (filtros.grupo && String(material.grupo) !== filtros.grupo) return false
         if (filtros.estadoStock === 'BAJO_MINIMO' && !s.bajo_minimo) return false
         if (filtros.estadoStock === 'DISPONIBLE' && s.bajo_minimo) return false
@@ -185,6 +193,31 @@ export default function Inventory() {
     }
   }
 
+  // ---- Clases de material ----
+
+  async function crearClaseMaterial(e: FormEvent) {
+    e.preventDefault()
+    if (!nuevaClase.codigo || !nuevaClase.nombre) return
+    setErrorClase(null)
+    try {
+      await api.post('/inventory/clases-material/', nuevaClase)
+      setNuevaClase({ codigo: '', nombre: '' })
+      cargarClasesMaterial()
+    } catch (err) {
+      setErrorClase(detalleError(err, 'No se pudo crear la clase.'))
+    }
+  }
+
+  async function eliminarClaseMaterial(c: ClaseMaterial) {
+    if (!window.confirm(`¿Eliminar la clase "${c.codigo} - ${c.nombre}"?`)) return
+    try {
+      await api.delete(`/inventory/clases-material/${c.id}/`)
+      cargarClasesMaterial()
+    } catch (err) {
+      window.alert(detalleError(err, 'No se pudo eliminar (puede estar en uso).'))
+    }
+  }
+
   // ---- Materiales ----
 
   function nuevoMaterial() {
@@ -198,7 +231,7 @@ export default function Inventory() {
       codigo: m.codigo,
       descripcion: m.descripcion,
       grupo: String(m.grupo),
-      clase: m.clase,
+      clase: m.clase ? String(m.clase) : '',
       unidad_medida: m.unidad_medida,
       costo_unitario: m.costo_unitario,
       tiempo_entrega_dias: String(m.tiempo_entrega_dias),
@@ -217,6 +250,7 @@ export default function Inventory() {
       const payload = {
         ...formMaterial,
         grupo: Number(formMaterial.grupo),
+        clase: formMaterial.clase ? Number(formMaterial.clase) : null,
         costo_unitario: formMaterial.costo_unitario || '0',
         tiempo_entrega_dias: formMaterial.tiempo_entrega_dias ? Number(formMaterial.tiempo_entrega_dias) : 0,
       }
@@ -421,9 +455,9 @@ export default function Inventory() {
                     className="w-full rounded-md border border-slate-300 text-sm px-2 py-1.5"
                   >
                     <option value="">Todas</option>
-                    {clases.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
+                    {clasesMaterial.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.codigo} - {c.nombre}
                       </option>
                     ))}
                   </select>
@@ -618,12 +652,67 @@ export default function Inventory() {
           {tab === 'materiales' && (
             <div className="space-y-3">
               {puedeGestionar && (
-                <button
-                  onClick={nuevoMaterial}
-                  className="text-sm font-medium text-white bg-slate-800 hover:bg-slate-700 rounded-md px-4 py-2"
-                >
-                  Nuevo material
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={nuevoMaterial}
+                    className="text-sm font-medium text-white bg-slate-800 hover:bg-slate-700 rounded-md px-4 py-2"
+                  >
+                    Nuevo material
+                  </button>
+                  <button
+                    onClick={() => setMostrarClases((v) => !v)}
+                    className="text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-md px-4 py-2"
+                  >
+                    {mostrarClases ? 'Ocultar clases' : 'Clases de material'}
+                  </button>
+                </div>
+              )}
+
+              {mostrarClases && puedeGestionar && (
+                <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 space-y-3">
+                  <h2 className="text-sm font-semibold text-slate-700">Clases de material</h2>
+                  <ul className="text-sm text-slate-600 space-y-1">
+                    {clasesMaterial.map((c) => (
+                      <li key={c.id} className="flex items-center justify-between gap-2">
+                        <span>
+                          <span className="font-mono text-xs bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
+                            {c.codigo}
+                          </span>{' '}
+                          {c.nombre}
+                        </span>
+                        {esAdministrador && (
+                          <button
+                            onClick={() => eliminarClaseMaterial(c)}
+                            className="text-xs font-medium text-red-600 hover:underline"
+                          >
+                            Eliminar
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                    {clasesMaterial.length === 0 && (
+                      <li className="text-slate-500">Sin clases todavía.</li>
+                    )}
+                  </ul>
+                  <form onSubmit={crearClaseMaterial} className="flex gap-2">
+                    <input
+                      placeholder="Código"
+                      value={nuevaClase.codigo}
+                      onChange={(e) => setNuevaClase((f) => ({ ...f, codigo: e.target.value }))}
+                      className="w-24 rounded-md border border-slate-300 text-sm px-2 py-1"
+                    />
+                    <input
+                      placeholder="Nombre"
+                      value={nuevaClase.nombre}
+                      onChange={(e) => setNuevaClase((f) => ({ ...f, nombre: e.target.value }))}
+                      className="flex-1 rounded-md border border-slate-300 text-sm px-2 py-1"
+                    />
+                    <button className="text-xs font-medium text-white bg-slate-800 hover:bg-slate-700 rounded-md px-3">
+                      Agregar
+                    </button>
+                  </form>
+                  {errorClase && <p className="text-sm text-red-600">{errorClase}</p>}
+                </div>
               )}
 
               {puedeGestionar && (
@@ -662,12 +751,18 @@ export default function Inventory() {
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-1">Clase</label>
-                      <input
+                      <select
                         value={formMaterial.clase}
                         onChange={(e) => setFormMaterial((f) => ({ ...f, clase: e.target.value }))}
-                        placeholder="Ej. REPUESTO"
                         className="w-full rounded-md border border-slate-300 text-sm px-2 py-1.5"
-                      />
+                      >
+                        <option value="">Sin especificar</option>
+                        {clasesMaterial.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.codigo} - {c.nombre}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-1">Grupo</label>
@@ -762,6 +857,7 @@ export default function Inventory() {
                     <tr>
                       <th className="text-left px-4 py-2">Código</th>
                       <th className="text-left px-4 py-2">Descripción</th>
+                      <th className="text-left px-4 py-2">Clase</th>
                       <th className="text-left px-4 py-2">Grupo</th>
                       <th className="text-left px-4 py-2">Costo unit.</th>
                       <th className="text-left px-4 py-2">Stock total</th>
@@ -774,6 +870,7 @@ export default function Inventory() {
                       <tr key={m.id} className="hover:bg-slate-50">
                         <td className="px-4 py-2 font-medium text-slate-700">{m.codigo}</td>
                         <td className="px-4 py-2">{m.descripcion}</td>
+                        <td className="px-4 py-2 text-slate-500">{m.clase_nombre || '—'}</td>
                         <td className="px-4 py-2 text-slate-500">{m.grupo_nombre}</td>
                         <td className="px-4 py-2 text-slate-500">S/ {m.costo_unitario}</td>
                         <td className="px-4 py-2 text-slate-500">{m.stock_total}</td>
@@ -800,7 +897,7 @@ export default function Inventory() {
                     ))}
                     {materiales.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                        <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
                           Sin materiales todavía.
                         </td>
                       </tr>

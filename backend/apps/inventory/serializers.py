@@ -1,5 +1,13 @@
 from rest_framework import serializers
-from .models import Almacen, GrupoMaterial, Material, StockAlmacen, MovimientoStock, TrasladoAlmacen
+from .models import (
+    Almacen,
+    ClaseMaterial,
+    GrupoMaterial,
+    Material,
+    StockAlmacen,
+    MovimientoStock,
+    TrasladoAlmacen,
+)
 
 
 class AlmacenSerializer(serializers.ModelSerializer):
@@ -15,8 +23,17 @@ class GrupoMaterialSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class ClaseMaterialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClaseMaterial
+        fields = "__all__"
+        read_only_fields = ["empresa"]
+
+
 class MaterialSerializer(serializers.ModelSerializer):
     grupo_nombre = serializers.CharField(source="grupo.nombre", read_only=True)
+    clase_codigo = serializers.CharField(source="clase.codigo", read_only=True, default=None)
+    clase_nombre = serializers.CharField(source="clase.nombre", read_only=True, default=None)
     stock_total = serializers.SerializerMethodField()
 
     class Meta:

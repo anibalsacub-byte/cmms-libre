@@ -1,6 +1,7 @@
 from rest_framework.routers import DefaultRouter
 from .views import (
     AlmacenViewSet,
+    ClaseMaterialViewSet,
     GrupoMaterialViewSet,
     MaterialViewSet,
     StockAlmacenViewSet,
@@ -11,6 +12,7 @@ from .views import (
 router = DefaultRouter()
 router.register("almacenes", AlmacenViewSet)
 router.register("grupos-material", GrupoMaterialViewSet)
+router.register("clases-material", ClaseMaterialViewSet, basename="clasematerial")
 router.register("materiales", MaterialViewSet)
 router.register("stock", StockAlmacenViewSet)
 router.register("movimientos", MovimientoStockViewSet)

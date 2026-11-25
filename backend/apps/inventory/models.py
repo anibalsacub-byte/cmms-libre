@@ -31,6 +31,30 @@ class GrupoMaterial(models.Model):
         return self.nombre
 
 
+class ClaseMaterial(models.Model):
+    """Clasificación de materiales propia de cada empresa (equivalente a
+    ClaseActivo, pero para el maestro de materiales): antes era texto libre
+    sin catálogo, inconsistente con cómo ya funciona la clase de un activo."""
+
+    empresa = models.ForeignKey(
+        "companies.Empresa", null=True, blank=True, on_delete=models.CASCADE, related_name="clases_material"
+    )
+    codigo = models.CharField(max_length=30)
+    nombre = models.CharField(max_length=150)
+    descripcion = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Clase de material"
+        verbose_name_plural = "Clases de material"
+        ordering = ["codigo"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "codigo"], name="clasematerial_empresa_codigo_unico")
+        ]
+
+    def __str__(self):
+        return f"{self.codigo} - {self.nombre}"
+
+
 class Material(models.Model):
     """Maestro de materiales (repuestos, consumibles de mantenimiento - estilo MRO)."""
 
@@ -46,7 +70,9 @@ class Material(models.Model):
     grupo = models.ForeignKey(
         GrupoMaterial, on_delete=models.PROTECT, related_name="materiales"
     )
-    clase = models.CharField(max_length=100, blank=True)
+    clase = models.ForeignKey(
+        ClaseMaterial, null=True, blank=True, on_delete=models.PROTECT, related_name="materiales"
+    )
     unidad_medida = models.CharField(max_length=10, default="UN")
     costo_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default="ACTIVO")

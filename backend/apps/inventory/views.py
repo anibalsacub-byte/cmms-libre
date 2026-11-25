@@ -11,10 +11,19 @@ from apps.accounts.permissions import (
 from apps.companies.auditoria_mixins import AuditoriaMixin
 from apps.companies.csv_mixins import CsvImportExportMixin
 from apps.companies.mixins import EmpresaScopedMixin
-from .models import Almacen, GrupoMaterial, Material, StockAlmacen, MovimientoStock, TrasladoAlmacen
+from .models import (
+    Almacen,
+    ClaseMaterial,
+    GrupoMaterial,
+    Material,
+    StockAlmacen,
+    MovimientoStock,
+    TrasladoAlmacen,
+)
 from .services import ajustar_stock
 from .serializers import (
     AlmacenSerializer,
+    ClaseMaterialSerializer,
     GrupoMaterialSerializer,
     MaterialSerializer,
     StockAlmacenSerializer,
@@ -36,26 +45,47 @@ class GrupoMaterialViewSet(viewsets.ModelViewSet):
     permission_classes = [SoloSuperusuarioEscribe]
 
 
+class ClaseMaterialViewSet(EmpresaScopedMixin, viewsets.ModelViewSet):
+    """Catálogo propio de la empresa (como ClaseActivo), a diferencia de
+    GrupoMaterial que es global y compartido entre empresas."""
+
+    queryset = ClaseMaterial.objects.all()
+    serializer_class = ClaseMaterialSerializer
+    permission_classes = [SoloAdministracionEscribe]
+    search_fields = ["codigo", "nombre"]
+
+
+def _obtener_o_crear_clase_material(empresa, nombre):
+    clase = ClaseMaterial.objects.filter(empresa=empresa, nombre__iexact=nombre).first()
+    if clase:
+        return clase
+    siguiente = ClaseMaterial.objects.filter(empresa=empresa).count() + 1
+    return ClaseMaterial.objects.create(empresa=empresa, codigo=f"CM-{siguiente:03d}", nombre=nombre)
+
+
 class MaterialViewSet(AuditoriaMixin, CsvImportExportMixin, EmpresaScopedMixin, viewsets.ModelViewSet):
-    queryset = Material.objects.all().prefetch_related("stocks")
+    queryset = Material.objects.all().prefetch_related("stocks").select_related("grupo", "clase")
     serializer_class = MaterialSerializer
     permission_classes = [SoloAdministracionEscribeAdminElimina]
     filterset_fields = ["grupo", "estado", "clase"]
-    search_fields = ["codigo", "descripcion", "clase"]
+    search_fields = ["codigo", "descripcion", "clase__nombre"]
 
     campos_csv = [
         "codigo",
         "descripcion",
         "grupo_nombre",
-        "clase",
+        "clase_nombre",
         "unidad_medida",
         "costo_unitario",
         "estado",
         "tiempo_entrega_dias",
     ]
+
     def _valor_export(self, obj, campo):
         if campo == "grupo_nombre":
             return obj.grupo.nombre
+        if campo == "clase_nombre":
+            return obj.clase.nombre if obj.clase_id else ""
         return super()._valor_export(obj, campo)
 
     def _preparar_fila_csv(self, fila):
@@ -64,11 +94,15 @@ class MaterialViewSet(AuditoriaMixin, CsvImportExportMixin, EmpresaScopedMixin, 
             raise ValueError("Falta el grupo de material.")
         grupo, _ = GrupoMaterial.objects.get_or_create(nombre=nombre_grupo)
 
+        clase_id = None
+        if fila["clase_nombre"]:
+            clase_id = _obtener_o_crear_clase_material(self._empresa(), fila["clase_nombre"]).id
+
         return {
             "codigo": fila["codigo"],
             "descripcion": fila["descripcion"],
             "grupo": grupo.id,
-            "clase": fila["clase"],
+            "clase": clase_id,
             "unidad_medida": fila["unidad_medida"] or "UN",
             "costo_unitario": fila["costo_unitario"] or 0,
             "estado": fila["estado"] or "ACTIVO",

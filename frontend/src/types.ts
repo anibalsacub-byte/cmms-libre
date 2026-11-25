@@ -231,13 +231,22 @@ export type Tecnico = {
   activo: boolean
 }
 
+export type ClaseMaterial = {
+  id: number
+  codigo: string
+  nombre: string
+  descripcion: string
+}
+
 export type Material = {
   id: number
   codigo: string
   descripcion: string
   grupo: number
   grupo_nombre: string
-  clase: string
+  clase: number | null
+  clase_codigo: string | null
+  clase_nombre: string | null
   unidad_medida: string
   costo_unitario: string
   estado: string
