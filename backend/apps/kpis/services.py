@@ -21,7 +21,7 @@ ubicaciones hijas de la seleccionada.
 
 from datetime import timedelta
 from django.utils import timezone
-from django.db.models import Sum, Count
+from django.db.models import Count
 
 from apps.assets.models import Activo, UbicacionTecnica
 from apps.notices.models import Aviso
@@ -70,12 +70,19 @@ def kpis_mantenimiento(empresa, dias=30, activo_id=None, clase_id=None, ubicacio
 
     ot_correctivas_periodo_qs = ot_todas_qs.filter(
         tipo="CORRECTIVO", fecha_creacion__gte=inicio, fecha_creacion__lte=fin
-    )
-    ot_periodo_qs = ot_todas_qs.filter(fecha_creacion__gte=inicio, fecha_creacion__lte=fin)
+    ).select_related("activo").prefetch_related("asignaciones__tecnico", "materiales")
+    ot_periodo_qs = ot_todas_qs.filter(
+        fecha_creacion__gte=inicio, fecha_creacion__lte=fin
+    ).select_related("activo").prefetch_related("asignaciones__tecnico", "materiales")
 
-    n_fallas = ot_correctivas_periodo_qs.count()
+    # Cada queryset se evalúa una sola vez y se reutiliza la lista resultante
+    # para todos los cálculos que siguen (evita N+1 y consultas duplicadas).
+    ot_correctivas_periodo = list(ot_correctivas_periodo_qs)
+    ot_periodo = list(ot_periodo_qs)
+
+    n_fallas = len(ot_correctivas_periodo)
     downtime_total = float(
-        ot_correctivas_periodo_qs.aggregate(total=Sum("tiempo_parada_horas"))["total"] or 0
+        sum((ot.tiempo_parada_horas or 0) for ot in ot_correctivas_periodo)
     )
 
     activos_qs = Activo.objects.filter(empresa=empresa, estado__in=["OPERATIVO", "EN_MANTENIMIENTO"])
@@ -94,19 +101,24 @@ def kpis_mantenimiento(empresa, dias=30, activo_id=None, clase_id=None, ubicacio
         else 0
     )
 
-    costo_total = sum(ot.costo_total for ot in ot_correctivas_periodo_qs)
+    costo_total = sum(ot.costo_total for ot in ot_correctivas_periodo)
 
     avisos_qs = Aviso.objects.filter(empresa=empresa, fecha_reporte__gte=inicio, fecha_reporte__lte=fin)
     if hay_filtro:
         avisos_qs = avisos_qs.filter(activo_id__in=activo_ids)
 
-    backlog = ot_todas_qs.exclude(estado__in=["CERRADA", "CANCELADA"]).count()
+    # OT abiertas (sin filtrar por período): se evalúa una sola vez y se
+    # reutiliza tanto para el conteo (backlog / abiertas) como para la edad.
+    ot_abiertas_list = list(
+        ot_todas_qs.exclude(estado__in=["CERRADA", "CANCELADA"]).only("id", "fecha_creacion")
+    )
+    backlog = len(ot_abiertas_list)
 
     # % preventivo / correctivo del total de OT creadas en el período.
-    total_ot_periodo = ot_periodo_qs.count()
-    conteo_por_tipo = dict(
-        ot_periodo_qs.values("tipo").annotate(total=Count("id")).values_list("tipo", "total")
-    )
+    total_ot_periodo = len(ot_periodo)
+    conteo_por_tipo = {}
+    for ot in ot_periodo:
+        conteo_por_tipo[ot.tipo] = conteo_por_tipo.get(ot.tipo, 0) + 1
     pct_preventivo = (
         round(conteo_por_tipo.get("PREVENTIVO", 0) / total_ot_periodo * 100, 1)
         if total_ot_periodo
@@ -120,7 +132,7 @@ def kpis_mantenimiento(empresa, dias=30, activo_id=None, clase_id=None, ubicacio
 
     # Costo por activo: top 10 del período, de mayor a menor.
     costo_por_activo_map = {}
-    for ot in ot_periodo_qs.select_related("activo"):
+    for ot in ot_periodo:
         entrada = costo_por_activo_map.setdefault(
             ot.activo_id,
             {"activo_codigo": ot.activo.codigo, "activo_nombre": ot.activo.nombre, "costo": 0.0},
@@ -134,19 +146,21 @@ def kpis_mantenimiento(empresa, dias=30, activo_id=None, clase_id=None, ubicacio
     # Edad de las OT actualmente abiertas (sin filtrar por período).
     ahora = timezone.now()
     edades_dias = [
-        (ahora - ot.fecha_creacion).total_seconds() / 86400
-        for ot in ot_todas_qs.exclude(estado__in=["CERRADA", "CANCELADA"]).only("fecha_creacion")
+        (ahora - ot.fecha_creacion).total_seconds() / 86400 for ot in ot_abiertas_list
     ]
     edad_promedio_ot_abiertas_dias = (
         round(sum(edades_dias) / len(edades_dias), 1) if edades_dias else 0
     )
 
     # Cumplimiento del plan preventivo: % de planes activos no vencidos hoy.
-    planes_qs = PlanPreventivo.objects.filter(activo__empresa=empresa, activo_flag=True)
+    planes_qs = PlanPreventivo.objects.filter(
+        activo__empresa=empresa, activo_flag=True
+    ).select_related("activo")
     if hay_filtro:
         planes_qs = planes_qs.filter(activo_id__in=activo_ids)
-    total_planes = planes_qs.count()
-    vencidos = sum(1 for p in planes_qs if p.esta_vencido())
+    planes = list(planes_qs)
+    total_planes = len(planes)
+    vencidos = sum(1 for p in planes if p.esta_vencido())
     cumplimiento_preventivo_pct = (
         round((total_planes - vencidos) / total_planes * 100, 1) if total_planes else None
     )
@@ -163,9 +177,7 @@ def kpis_mantenimiento(empresa, dias=30, activo_id=None, clase_id=None, ubicacio
             estado__in=["ABIERTO", "EN_EVALUACION"]
         ).count(),
         "avisos_totales_periodo": avisos_qs.count(),
-        "ordenes_trabajo_abiertas": ot_todas_qs.exclude(
-            estado__in=["CERRADA", "CANCELADA"]
-        ).count(),
+        "ordenes_trabajo_abiertas": backlog,
         "backlog": backlog,
         "ordenes_por_estado": dict(
             ot_todas_qs.values("estado").annotate(total=Count("id")).values_list(
@@ -251,14 +263,18 @@ def reporte_costos(empresa, dias=90, activo_id=None, clase_id=None, ubicacion_id
             fecha_creacion__lte=fin,
         )
         .select_related("activo", "activo__ubicacion_tecnica")
+        .prefetch_related("asignaciones__tecnico", "materiales")
         .order_by("activo__codigo", "fecha_creacion")
     )
+
+    # Se evalúa una sola vez y se reutiliza la lista para el recorrido y el conteo.
+    ot_list = list(ot_qs)
 
     por_activo_map = {}
     por_ubicacion_map = {}
     costo_total = 0.0
 
-    for ot in ot_qs:
+    for ot in ot_list:
         costo = ot.costo_total
         costo_total += costo
 
@@ -289,7 +305,7 @@ def reporte_costos(empresa, dias=90, activo_id=None, clase_id=None, ubicacion_id
     return {
         "periodo_dias": dias,
         "costo_total": round(costo_total, 2),
-        "numero_ot": ot_qs.count(),
+        "numero_ot": len(ot_list),
         "por_activo": por_activo,
         "por_ubicacion": por_ubicacion,
     }
