@@ -108,6 +108,11 @@ export default function Dashboard() {
         <KpiCard label="MTTR" value={`${mantenimiento.mttr_horas} h`} hint="Tiempo medio de reparación" />
         <KpiCard label="Disponibilidad" value={`${mantenimiento.disponibilidad_pct}%`} />
         <KpiCard label="Downtime" value={`${mantenimiento.downtime_horas} h`} />
+        <KpiCard
+          label="Nº de fallas"
+          value={`${mantenimiento.numero_fallas}`}
+          hint="OT correctivas en el período"
+        />
         <KpiCard label="Backlog" value={`${mantenimiento.backlog}`} hint="OTs abiertas" />
         <KpiCard label="Avisos abiertos" value={`${mantenimiento.avisos_abiertos}`} />
         <KpiCard
